@@ -308,7 +308,7 @@ export default function CarrierTracker() {
   const fetchLoads = async () => {
     const { data } = await supabase
       .from('loads')
-      .select('*')
+      .select('*, profiles:created_by(full_name, email)')
       .order('created_at', { ascending: false });
     if (data) setLoads(data);
   };
@@ -1691,8 +1691,24 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
   const [showDeliveryConfirm, setShowDeliveryConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
   const [uploading, setUploading] = useState(false);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
 
-  // Fetch notes and documents for this load
+  // Fetch notes, documents, and audit logs for this load
+  const fetchAuditLogs = useCallback(async () => {
+    setLoadingAudit(true);
+    const { data, error } = await supabase
+      .from('load_audit_logs')
+      .select('*, profiles(full_name, email)')
+      .eq('load_id', load.id)
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setAuditLogs(data);
+    }
+    setLoadingAudit(false);
+  }, [load.id]);
+
   const fetchNotes = useCallback(async () => {
     setLoadingNotes(true);
     const { data, error } = await supabase
@@ -1730,7 +1746,8 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
   useEffect(() => {
     fetchNotes();
     fetchDocuments();
-  }, [fetchNotes, fetchDocuments]);
+    fetchAuditLogs();
+  }, [fetchNotes, fetchDocuments, fetchAuditLogs]);
 
   const addNote = async () => {
     if (!newNote.trim()) return;
@@ -1912,6 +1929,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
             { id: 'details', label: 'Details', icon: Eye },
             { id: 'documents', label: `Documents (${documents.length})`, icon: FileText },
             { id: 'notes', label: `Notes (${notes.length})`, icon: MessageSquare },
+            { id: 'history', label: `Change Log (${auditLogs.length})`, icon: History },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1934,6 +1952,25 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left Column - Details */}
               <div className="space-y-6">
+                {/* Created By Info */}
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-[#003366] mb-2">Record Information</h4>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-[#003366] rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      {load.profiles?.full_name?.charAt(0) || 'U'}
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Created By</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {load.profiles?.full_name || 'System / Unknown'}
+                      </p>
+                      <p className="text-[10px] text-gray-400">
+                        {new Date(load.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Route Info */}
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">Route</h4>
@@ -2176,6 +2213,68 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
                     <p className="text-gray-400">No notes yet</p>
                     <p className="text-xs text-gray-400 mt-1">Add notes to track important information</p>
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* History Tab */}
+          {activeTab === 'history' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                  <History className="w-4 h-4 text-[#003366]" />
+                  Change Log
+                </h4>
+                <button 
+                  onClick={fetchAuditLogs}
+                  className="text-xs text-[#003366] hover:underline flex items-center gap-1"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingAudit ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {loadingAudit ? (
+                  <p className="text-center py-8 text-gray-400">Loading history...</p>
+                ) : auditLogs.length > 0 ? (
+                  auditLogs.map((log) => (
+                    <div key={log.id} className="relative pl-6 pb-4 border-l-2 border-gray-100 last:border-0">
+                      <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full flex items-center justify-center ${
+                        log.action === 'INSERT' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
+                      }`}>
+                        {log.action === 'INSERT' ? <Plus className="w-2 h-2" /> : <Edit className="w-2 h-2" />}
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-xs font-bold text-gray-900">
+                            {log.action === 'INSERT' ? 'Load Created' : 'Load Updated'}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(log.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        {log.action === 'UPDATE' && log.changed_fields && (
+                          <div className="mt-2 space-y-1">
+                            {Object.entries(log.changed_fields).map(([field, values]) => (
+                              <div key={field} className="text-[11px] flex items-center gap-2">
+                                <span className="text-gray-500 font-medium capitalize">{field.replace(/_/g, ' ')}:</span>
+                                <span className="text-red-400 line-through">{String(values.old)}</span>
+                                <ArrowRight className="w-3 h-3 text-gray-300" />
+                                <span className="text-green-600 font-medium">{String(values.new)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-gray-500 mt-2">
+                          By: <span className="font-medium text-gray-700">{log.profiles?.full_name || 'System'}</span>
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center py-8 text-gray-400 italic">No history recorded yet.</p>
                 )}
               </div>
             </div>
@@ -3422,7 +3521,7 @@ function UsersPage({ isSuperAdmin, showToast }) {
 
   const updateUserStatus = async (userId, status) => {
     try {
-      const { error } = await supabase
+    const { error } = await supabase
         .from('profiles')
         .update({ status })
         .eq('id', userId);
