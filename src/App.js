@@ -3984,6 +3984,8 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
     setLoading(true);
     
     try {
+      console.log('Calling Edge Function with:', { email, fullName, role });
+      
       // Call Edge Function to create user with admin API
       const { data, error } = await supabase.functions.invoke('invite-user', {
         body: {
@@ -3994,14 +3996,20 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
         }
       });
 
-      console.log('Edge Function response:', { data, error });
+      console.log('Edge Function full response:', { data, error });
 
       if (error) {
-        console.error('Edge Function error:', error);
+        console.error('Edge Function error details:', {
+          message: error.message,
+          context: error.context,
+          status: error.status,
+          full: error
+        });
         throw new Error(`Function error: ${error.message || JSON.stringify(error)}`);
       }
 
       if (data?.error) {
+        console.error('Edge Function returned error:', data.error);
         throw new Error(data.error);
       }
 
