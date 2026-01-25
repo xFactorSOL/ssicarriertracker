@@ -612,7 +612,7 @@ export default function CarrierTracker() {
               onRefresh={fetchLoads} 
               showToast={showToast}
               isManager={isManager}
-              userId={user.id}
+              currentUser={user}
             />
           )}
           {activeTab === 'carriers' && (
@@ -1322,7 +1322,7 @@ function Dashboard({ loads, carriers, customers, isManager, setActiveTab }) {
 }
 
 // Loads Page
-function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager, userId }) {
+function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager, currentUser }) {
   const [showForm, setShowForm] = useState(false);
   const [editingLoad, setEditingLoad] = useState(null);
   const [viewingLoad, setViewingLoad] = useState(null);
@@ -1342,14 +1342,14 @@ function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager
     console.log('LoadsPage Debug:', { 
       totalLoads: loads.length, 
       isManager, 
-      userId,
+      currentUser: currentUser?.id,
       loads: loads.map(l => ({ id: l.id, load_number: l.load_number, created_by: l.created_by }))
     });
     */
     
     // Filter by user if not manager (temporarily disabled for debugging)
     // if (!isManager) {
-    //   result = result.filter(l => l.created_by === userId);
+    //   result = result.filter(l => l.created_by === currentUser?.id);
     // }
     
     // Search filter
@@ -1642,6 +1642,7 @@ function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager
           onEdit={() => { setEditingLoad(viewingLoad); setShowForm(true); setViewingLoad(null); }}
           onRefresh={onRefresh}
           showToast={showToast}
+          currentUser={currentUser}
         />
       )}
 
@@ -1844,7 +1845,7 @@ LD-002,XYZ Corp,Quick Transport,Miami FL,New York NY,1800,1500,in_transit`;
 }
 
 // Load Detail Modal with Notes & Timeline
-function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
+function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentUser }) {
   const [notes, setNotes] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [newNote, setNewNote] = useState('');
@@ -1955,8 +1956,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
     if (!newNote.trim()) return;
     
     try {
-      const user = (await supabase.auth.getUser()).data.user;
-      if (!user) {
+      if (!currentUser) {
         showToast('You must be logged in to add notes', 'error');
         return;
       }
@@ -1964,7 +1964,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
       const { data, error } = await supabase.from('load_notes').insert([{
         load_id: load.id,
         content: sanitizeInput(newNote),
-        user_id: user.id
+        user_id: currentUser.id
       }]).select();
 
       if (error) {
@@ -2012,7 +2012,12 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
     setUploading(true);
 
     try {
-      const user = (await supabase.auth.getUser()).data.user;
+      if (!currentUser) {
+        showToast('You must be logged in to upload documents', 'error');
+        setUploading(false);
+        return;
+      }
+      
       const fileExt = file.name.split('.').pop();
       const fileName = `${load.id}/${docType}_${Date.now()}.${fileExt}`;
 
@@ -2035,7 +2040,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
       // Save document record
       const { error: dbError } = await supabase.from('load_documents').insert([{
         load_id: load.id,
-        user_id: user?.id,
+        user_id: currentUser.id,
         document_type: docType,
         file_name: file.name,
         file_path: fileName,
