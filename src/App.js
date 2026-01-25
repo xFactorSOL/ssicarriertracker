@@ -682,10 +682,10 @@ function LoginPage({ email, setEmail, password, setPassword, handleAuth, loading
           
           <div className="text-center lg:text-left mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-              {isLogin ? 'Welcome back' : 'Create account'}
+              Welcome back
             </h2>
             <p className="text-gray-500">
-              {isLogin ? 'Enter your credentials to access your account' : 'Fill in your details to get started'}
+              Enter your credentials to access your account
             </p>
           </div>
 
@@ -717,7 +717,7 @@ function LoginPage({ email, setEmail, password, setPassword, handleAuth, loading
               disabled={loading}
               className="w-full bg-[#003366] hover:bg-[#002244] text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
             >
-              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
+              {loading ? 'Please wait...' : 'Sign In'}
             </button>
           </form>
 
