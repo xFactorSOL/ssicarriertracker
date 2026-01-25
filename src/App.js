@@ -2759,40 +2759,57 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
 
   // Calculate miles using OSRM (free routing service)
   const calculateMiles = async () => {
-    // Need both origin and destination
-    if ((!formData.origin_zip && !formData.origin_city) || 
-        (!formData.destination_zip && !formData.destination_city)) {
-      showToast('Please enter both origin and destination first', 'error');
+    // Need both origin and destination - check city fields
+    const hasOrigin = formData.origin_city && formData.origin_state;
+    const hasDestination = formData.destination_city && formData.destination_state;
+    
+    if (!hasOrigin && !hasDestination) {
+      showToast('Please lookup both origin and destination ZIP codes first', 'error');
+      return;
+    }
+    if (!hasOrigin) {
+      showToast('Please lookup origin ZIP code first', 'error');
+      return;
+    }
+    if (!hasDestination) {
+      showToast('Please lookup destination ZIP code first', 'error');
       return;
     }
 
     setZipLookupLoading(true);
     
     try {
-      // Get coordinates for origin
-      const originQuery = formData.origin_zip || `${formData.origin_city}, ${formData.origin_state}, USA`;
+      // Get coordinates for origin using city, state
+      const originQuery = `${formData.origin_city}, ${formData.origin_state}, USA`;
+      console.log('Looking up origin:', originQuery);
       const originResponse = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(originQuery)}&country=US&format=json&limit=1`,
         { headers: { 'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0' } }
       );
       const originData = await originResponse.json();
+      console.log('Origin data:', originData);
       
       if (!originData || originData.length === 0) {
-        showToast('Could not find origin location', 'error');
+        showToast('Could not find origin location on map', 'error');
         setZipLookupLoading(false);
         return;
       }
       
-      // Get coordinates for destination
-      const destQuery = formData.destination_zip || `${formData.destination_city}, ${formData.destination_state}, USA`;
+      // Small delay to respect Nominatim rate limits (1 req/sec)
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      
+      // Get coordinates for destination using city, state
+      const destQuery = `${formData.destination_city}, ${formData.destination_state}, USA`;
+      console.log('Looking up destination:', destQuery);
       const destResponse = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(destQuery)}&country=US&format=json&limit=1`,
         { headers: { 'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0' } }
       );
       const destData = await destResponse.json();
+      console.log('Destination data:', destData);
       
       if (!destData || destData.length === 0) {
-        showToast('Could not find destination location', 'error');
+        showToast('Could not find destination location on map', 'error');
         setZipLookupLoading(false);
         return;
       }
