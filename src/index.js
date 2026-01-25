@@ -72,6 +72,7 @@ if (process.env.NODE_ENV === 'development') {
   };
 }
 
+// Final production build trigger
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
