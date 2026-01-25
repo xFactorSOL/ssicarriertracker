@@ -5,14 +5,14 @@ import {
   PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import { 
-  Truck, Clock, DollarSign, Plus, CheckCircle, Users, Shield, Search,
+  Truck, DollarSign, Plus, CheckCircle, Users, Shield, Search,
   Download, Upload, MapPin, Phone, Settings, LogOut,
   ChevronDown, ChevronRight, X, Edit, Trash2, Eye,
   Building, User, Package, BarChart3, Home, Layers, ArrowUpRight,
   ArrowDownRight, RefreshCw, AlertTriangle, Bell,
   MessageSquare, History, Target, Award, Activity,
-  ArrowRight, Play, RotateCcw,
-  CreditCard, Receipt, Banknote,
+  ArrowRight,
+  CreditCard, Receipt,
   FileUp, File, ClipboardCheck, Calendar, FileText
 } from 'lucide-react';
 
@@ -42,7 +42,7 @@ const sanitizeInput = (input) => {
 
 const validatePhone = (phone) => {
   if (!phone) return true; // Optional field
-  const re = /^[\d\s\(\)\+\.]+$/;
+  const re = /^[\d\s()+\.]+$/;
   return re.test(phone) && phone.replace(/\D/g, '').length >= 10;
 };
 
@@ -1215,7 +1215,7 @@ function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager
     });
     
     return result;
-  }, [loads, search, statusFilter, dateFilter, carrierFilter, sortBy, sortDir, isManager, userId]);
+  }, [loads, search, statusFilter, dateFilter, carrierFilter, sortBy, sortDir]);
 
   const updateStatus = async (loadId, status) => {
     const updateData = { status };
