@@ -1699,11 +1699,13 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
     setLoadingAudit(true);
     const { data, error } = await supabase
       .from('load_audit_logs')
-      .select('*, profiles(full_name, email)')
+      .select('*, profiles:user_id(full_name, email)')
       .eq('load_id', load.id)
       .order('created_at', { ascending: false });
     
-    if (!error && data) {
+    if (error) {
+      console.error('Audit log fetch error:', error);
+    } else if (data) {
       setAuditLogs(data);
     }
     setLoadingAudit(false);
@@ -1713,11 +1715,13 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
     setLoadingNotes(true);
     const { data, error } = await supabase
       .from('load_notes')
-      .select('*, profiles(full_name)')
+      .select('*, profiles:user_id(full_name)')
       .eq('load_id', load.id)
       .order('created_at', { ascending: false });
     
-    if (!error && data) {
+    if (error) {
+      console.error('Notes fetch error:', error);
+    } else if (data) {
       setNotes(data);
     }
     setLoadingNotes(false);
