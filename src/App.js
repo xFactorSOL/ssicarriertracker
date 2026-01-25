@@ -2759,9 +2759,19 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
 
   // Calculate miles using OSRM (free routing service)
   const calculateMiles = async () => {
+    // Debug log to see what's in formData
+    console.log('Calculate Miles - formData:', {
+      origin_city: formData.origin_city,
+      origin_state: formData.origin_state,
+      destination_city: formData.destination_city,
+      destination_state: formData.destination_state
+    });
+    
     // Need both origin and destination - check city fields
     const hasOrigin = formData.origin_city && formData.origin_state;
     const hasDestination = formData.destination_city && formData.destination_state;
+    
+    console.log('Has origin:', hasOrigin, 'Has destination:', hasDestination);
     
     if (!hasOrigin && !hasDestination) {
       showToast('Please lookup both origin and destination ZIP codes first', 'error');
