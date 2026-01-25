@@ -1759,22 +1759,26 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
         return;
       }
 
-      const { error } = await supabase.from('load_notes').insert([{
+      console.log('Attempting to add note for load:', load.id, 'by user:', user.id);
+
+      const { data, error } = await supabase.from('load_notes').insert([{
         load_id: load.id,
         content: sanitizeInput(newNote),
         user_id: user.id
-      }]);
+      }]).select();
 
       if (error) {
         console.error('Add note error:', error);
         showToast(`Failed to add note: ${error.message}`, 'error');
       } else {
+        console.log('Note added successfully:', data);
         setNewNote('');
         showToast('Note added', 'success');
-        // Small delay to ensure DB consistency before re-fetch
-        setTimeout(() => fetchNotes(), 500);
+        await fetchNotes();
+        await fetchAuditLogs();
       }
     } catch (err) {
+      console.error('Catch error adding note:', err);
       showToast('An unexpected error occurred', 'error');
     }
   };
