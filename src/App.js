@@ -3750,13 +3750,20 @@ function UsersPage({ isSuperAdmin, showToast }) {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (!error && data) {
-      setUsers(data);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Fetch users error:', error);
+      } else {
+        console.log('Fetched users:', data?.length, data);
+        setUsers(data || []);
+      }
+    } catch (err) {
+      console.error('Fetch users exception:', err);
     }
     setLoading(false);
   };
@@ -3847,15 +3854,24 @@ function UsersPage({ isSuperAdmin, showToast }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Team Management</h2>
-          <p className="text-sm text-gray-500">Manage user access and permissions</p>
+          <p className="text-sm text-gray-500">Manage user access and permissions ({users.length} users)</p>
         </div>
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Create User
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={fetchUsers}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Create User
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
