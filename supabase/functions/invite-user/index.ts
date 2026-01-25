@@ -13,6 +13,50 @@ serve(async (req) => {
   }
 
   try {
+    // Verify the request is from an authenticated user
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Create regular client to verify user auth
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? 'https://qwoabopuoihbawlwmgbf.supabase.co',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: authHeader }
+        }
+      }
+    )
+
+    // Verify the calling user exists and is a super admin
+    const { data: { user: callingUser }, error: authError } = await supabaseClient.auth.getUser()
+    
+    if (authError || !callingUser) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Check if user is super admin
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('is_super_admin')
+      .eq('id', callingUser.id)
+      .single()
+
+    if (!profile?.is_super_admin) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Get request data
     const { email, fullName, role } = await req.json()
 
