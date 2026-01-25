@@ -1699,7 +1699,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
     setLoadingAudit(true);
     const { data, error } = await supabase
       .from('load_audit_logs')
-      .select('*, profiles:user_id(full_name, email)')
+      .select('*, profiles(full_name, email)')
       .eq('load_id', load.id)
       .order('created_at', { ascending: false });
     
@@ -1715,7 +1715,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
     setLoadingNotes(true);
     const { data, error } = await supabase
       .from('load_notes')
-      .select('*, profiles:user_id(full_name)')
+      .select('*, profiles(full_name)')
       .eq('load_id', load.id)
       .order('created_at', { ascending: false });
     
