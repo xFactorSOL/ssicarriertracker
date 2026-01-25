@@ -2757,6 +2757,79 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
     setZipLookupLoading(false);
   };
 
+  // Calculate miles using OSRM (free routing service)
+  const calculateMiles = async () => {
+    // Need both origin and destination
+    if ((!formData.origin_zip && !formData.origin_city) || 
+        (!formData.destination_zip && !formData.destination_city)) {
+      showToast('Please enter both origin and destination first', 'error');
+      return;
+    }
+
+    setZipLookupLoading(true);
+    
+    try {
+      // Get coordinates for origin
+      const originQuery = formData.origin_zip || `${formData.origin_city}, ${formData.origin_state}, USA`;
+      const originResponse = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(originQuery)}&country=US&format=json&limit=1`,
+        { headers: { 'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0' } }
+      );
+      const originData = await originResponse.json();
+      
+      if (!originData || originData.length === 0) {
+        showToast('Could not find origin location', 'error');
+        setZipLookupLoading(false);
+        return;
+      }
+      
+      // Get coordinates for destination
+      const destQuery = formData.destination_zip || `${formData.destination_city}, ${formData.destination_state}, USA`;
+      const destResponse = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(destQuery)}&country=US&format=json&limit=1`,
+        { headers: { 'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0' } }
+      );
+      const destData = await destResponse.json();
+      
+      if (!destData || destData.length === 0) {
+        showToast('Could not find destination location', 'error');
+        setZipLookupLoading(false);
+        return;
+      }
+      
+      const originLon = originData[0].lon;
+      const originLat = originData[0].lat;
+      const destLon = destData[0].lon;
+      const destLat = destData[0].lat;
+      
+      // Calculate route using OSRM (free routing)
+      const routeResponse = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${originLon},${originLat};${destLon},${destLat}?overview=false`
+      );
+      const routeData = await routeResponse.json();
+      
+      if (routeData.code === 'Ok' && routeData.routes && routeData.routes.length > 0) {
+        // Distance is in meters, convert to miles
+        const distanceMeters = routeData.routes[0].distance;
+        const distanceMiles = Math.round(distanceMeters / 1609.34);
+        
+        setFormData(prev => ({
+          ...prev,
+          miles: distanceMiles.toString()
+        }));
+        
+        showToast(`Distance: ${distanceMiles.toLocaleString()} miles`, 'success');
+      } else {
+        showToast('Could not calculate route distance', 'error');
+      }
+    } catch (error) {
+      console.error('Route calculation error:', error);
+      showToast('Error calculating distance', 'error');
+    }
+    
+    setZipLookupLoading(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -3037,13 +3110,25 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Miles</label>
-            <input
-              type="number"
-              value={formData.miles}
-              onChange={(e) => setFormData({...formData, miles: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
-                placeholder="0"
-            />
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={formData.miles}
+                  onChange={(e) => setFormData({...formData, miles: e.target.value})}
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                  placeholder="0"
+                />
+                <button
+                  type="button"
+                  onClick={calculateMiles}
+                  disabled={zipLookupLoading}
+                  className="px-3 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 text-xs font-medium whitespace-nowrap"
+                  title="Calculate driving distance using OSRM"
+                >
+                  {zipLookupLoading ? '...' : 'Calc'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Auto-calculate from addresses</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Rate Billed to Customer</label>
