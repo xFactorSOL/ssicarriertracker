@@ -125,7 +125,10 @@ serve(async (req) => {
   } catch (err) {
     console.error('💥 Error:', err)
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ 
+        error: err.message || 'Unknown error occurred',
+        details: err.toString() 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

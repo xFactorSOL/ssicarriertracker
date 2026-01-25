@@ -4005,7 +4005,9 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
           status: error.status,
           full: error
         });
-        throw new Error(`Function error: ${error.message || JSON.stringify(error)}`);
+        // Show the actual error message from the function
+        const errorMsg = error.context?.body?.error || error.message || 'Unknown error';
+        throw new Error(errorMsg);
       }
 
       if (data?.error) {
@@ -4013,6 +4015,7 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
         throw new Error(data.error);
       }
 
+      console.log('✅ Success! User created:', data);
       showToast(data.message || `User created! Email: ${email}, Password: ${password}`, 'success');
       onSuccess();
     } catch (error) {
