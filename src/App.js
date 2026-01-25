@@ -3992,9 +3992,14 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
         }
       });
 
-      if (error) throw error;
+      console.log('Edge Function response:', { data, error });
 
-      if (data.error) {
+      if (error) {
+        console.error('Edge Function error:', error);
+        throw new Error(`Function error: ${error.message || JSON.stringify(error)}`);
+      }
+
+      if (data?.error) {
         throw new Error(data.error);
       }
 
