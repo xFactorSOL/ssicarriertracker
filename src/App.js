@@ -362,6 +362,10 @@ export default function CarrierTracker() {
     if (data) {
       setProfile(data);
     } else if (error?.code === 'PGRST116') {
+      // Profile doesn't exist - sign out the stale auth session
+      console.warn('Profile not found for user, signing out');
+      await supabase.auth.signOut();
+      setUser(null);
       setProfile(null);
     }
     setLoading(false);
