@@ -3421,62 +3421,83 @@ function UsersPage({ isSuperAdmin, showToast }) {
   };
 
   const updateUserStatus = async (userId, status) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ status })
-      .eq('id', userId);
-    
-    if (error) {
-      showToast('Failed to update user', 'error');
-    } else {
-      showToast(`User ${status}`, 'success');
-      fetchUsers();
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status })
+        .eq('id', userId);
+      
+      if (error) {
+        console.error('Update error:', error);
+        showToast(`Failed to update user: ${error.message}`, 'error');
+      } else {
+        showToast(`User ${status}`, 'success');
+        await fetchUsers(); // Re-fetch to update UI
+      }
+    } catch (err) {
+      console.error('Catch error:', err);
+      showToast('An unexpected error occurred', 'error');
     }
   };
 
   const updateRole = async (userId, role) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role })
-      .eq('id', userId);
-    
-    if (error) {
-      showToast(error.message, 'error');
-    } else {
-      showToast('Role updated', 'success');
-      fetchUsers();
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role })
+        .eq('id', userId);
+      
+      if (error) {
+        console.error('Role update error:', error);
+        showToast(error.message, 'error');
+      } else {
+        showToast('Role updated', 'success');
+        await fetchUsers(); // Re-fetch to update UI
+      }
+    } catch (err) {
+      showToast('Failed to update role', 'error');
     }
   };
 
   const deleteUser = async (userId) => {
     if (!window.confirm('Are you sure you want to suspend this user? They will lose all access immediately.')) return;
     
-    const { error } = await supabase
-      .from('profiles')
-      .update({ status: 'suspended' })
-      .eq('id', userId);
-    
-    if (error) {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: 'suspended' })
+        .eq('id', userId);
+      
+      if (error) {
+        console.error('Suspend error:', error);
+        showToast(`Failed to suspend user: ${error.message}`, 'error');
+      } else {
+        showToast('User suspended', 'success');
+        await fetchUsers(); // Re-fetch to update UI
+      }
+    } catch (err) {
       showToast('Failed to suspend user', 'error');
-    } else {
-      showToast('User suspended', 'success');
-      fetchUsers();
     }
   };
 
   const hardDeleteUser = async (userId) => {
     if (!window.confirm('CRITICAL: Are you sure you want to PERMANENTLY delete this user? This cannot be undone.')) return;
     
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
-    
-    if (error) {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+      
+      if (error) {
+        console.error('Hard delete error:', error);
+        showToast(`Failed to delete user: ${error.message}`, 'error');
+      } else {
+        showToast('User permanently deleted', 'success');
+        await fetchUsers(); // Re-fetch to update UI
+      }
+    } catch (err) {
       showToast('Failed to delete user', 'error');
-    } else {
-      showToast('User permanently deleted', 'success');
-      fetchUsers();
     }
   };
 
