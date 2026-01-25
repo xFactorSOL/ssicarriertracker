@@ -259,7 +259,8 @@ export default function CarrierTracker() {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
-        fetchNotifications();
+        // Notifications disabled to reduce API calls
+        // fetchNotifications();
       }
       setLoading(false);
     });
@@ -268,7 +269,8 @@ export default function CarrierTracker() {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
-        fetchNotifications();
+        // Notifications disabled to reduce API calls
+        // fetchNotifications();
       } else {
         setProfile(null);
         setNotifications([]);
@@ -277,26 +279,20 @@ export default function CarrierTracker() {
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchNotifications]);
+  }, []);
 
   useEffect(() => {
     if (user && profile && isActive) {
-      // Stagger API calls to prevent ERR_INSUFFICIENT_RESOURCES
-      fetchLoads();
-      setTimeout(() => fetchCarriers(), 200);
-      setTimeout(() => fetchCustomers(), 400);
-      
-      // Disable real-time subscriptions to reduce connections
-      // Uncomment if you need real-time updates:
-      /*
-      const channel = supabase
-        .channel('all_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'loads' }, fetchLoads)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'carriers' }, fetchCarriers)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, fetchCustomers)
-        .subscribe();
-      return () => supabase.removeChannel(channel);
-      */
+      // Stagger API calls with longer delays to prevent ERR_INSUFFICIENT_RESOURCES
+      const t1 = setTimeout(() => fetchLoads(), 100);
+      const t2 = setTimeout(() => fetchCarriers(), 1000);
+      const t3 = setTimeout(() => fetchCustomers(), 2000);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
     }
   }, [user, profile, isActive]);
 
@@ -1942,12 +1938,13 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
   }, [load?.id, showToast]);
 
   useEffect(() => {
-    // Stagger fetches to prevent browser resource exhaustion
-    fetchNotes();
-    const docsTimer = setTimeout(() => fetchDocuments(), 300);
-    const auditTimer = setTimeout(() => fetchAuditLogs(), 600);
+    // Stagger fetches with longer delays to prevent browser resource exhaustion
+    const notesTimer = setTimeout(() => fetchNotes(), 500);
+    const docsTimer = setTimeout(() => fetchDocuments(), 1500);
+    const auditTimer = setTimeout(() => fetchAuditLogs(), 2500);
     
     return () => {
+      clearTimeout(notesTimer);
       clearTimeout(docsTimer);
       clearTimeout(auditTimer);
     };
