@@ -13,7 +13,7 @@ import {
   MessageSquare, History, Target, Award, Activity,
   ArrowRight, Play, RotateCcw,
   CreditCard, Receipt, Banknote,
-  FileUp, File, ClipboardCheck
+  FileUp, File, ClipboardCheck, Calendar, FileText
 } from 'lucide-react';
 
 // Supabase client - uses environment variables for security
@@ -3509,7 +3509,6 @@ function SettingsPage({ profile, showToast }) {
         showToast(error.message, 'error');
       } else {
         showToast('Password changed successfully!', 'success');
-        setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
       }
