@@ -4001,17 +4001,23 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
         return;
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .insert([{
+          id: crypto.randomUUID(), // Generate a UUID for the profile
           email: sanitizeInput(email.toLowerCase()),
           full_name: sanitizeInput(fullName),
           role: role,
           status: 'pending' // They still need to sign up to create the auth user
-        }]);
+        }])
+        .select();
 
-      if (error) throw error;
-
+      if (error) {
+        console.error('Profile insert error:', error);
+        throw error;
+      }
+      
+      console.log('Profile created:', data);
       showToast(`User record created. Please ask ${fullName} to sign up with ${email}.`, 'success');
       onSuccess();
     } catch (error) {
