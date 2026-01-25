@@ -200,7 +200,6 @@ export default function CarrierTracker() {
   const [customers, setCustomers] = useState([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [toast, setToast] = useState(null);
@@ -398,22 +397,12 @@ export default function CarrierTracker() {
     e.preventDefault();
     setLoading(true);
     
-    if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        showToast(error.message, 'error');
-        setLoading(false);
-      } else {
-        showToast('Welcome back!', 'success');
-      }
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        showToast(error.message, 'error');
-      } else {
-        showToast('Check your email for confirmation link!', 'success');
-      }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      showToast(error.message, 'error');
       setLoading(false);
+    } else {
+      showToast('Welcome back!', 'success');
     }
   };
 
@@ -447,8 +436,6 @@ export default function CarrierTracker() {
           setEmail={setEmail}
           password={password}
           setPassword={setPassword}
-          isLogin={isLogin}
-          setIsLogin={setIsLogin}
           handleAuth={handleAuth}
           loading={loading}
         />
@@ -636,7 +623,7 @@ export default function CarrierTracker() {
 }
 
 // Login Page - Seaboard Solutions Corporate
-function LoginPage({ email, setEmail, password, setPassword, isLogin, setIsLogin, handleAuth, loading }) {
+function LoginPage({ email, setEmail, password, setPassword, handleAuth, loading }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex">
       {/* Left side - Branding */}
@@ -735,13 +722,7 @@ function LoginPage({ email, setEmail, password, setPassword, isLogin, setIsLogin
           </form>
 
           <p className="mt-6 text-center text-gray-500 text-sm">
-            {isLogin ? "Don't have an account? " : 'Already have an account? '}
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-              className="text-[#003366] hover:text-[#002244] font-medium"
-          >
-              {isLogin ? 'Sign up' : 'Sign in'}
-          </button>
+            Need access? Contact your administrator.
           </p>
           
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
