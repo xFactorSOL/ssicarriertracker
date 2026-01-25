@@ -210,6 +210,8 @@ export default function CarrierTracker() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [toast, setToast] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
   const isManager = profile?.role === 'manager' || isSuperAdmin;
@@ -219,11 +221,50 @@ export default function CarrierTracker() {
     setToast({ message, type });
   }, []);
 
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    
+    if (!error && data) {
+      setNotifications(data);
+    }
+  }, [user]);
+
+  const markNotificationRead = async (id) => {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', id);
+    
+    if (!error) {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false);
+    
+    if (!error) {
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
+        fetchNotifications();
       }
       setLoading(false);
     });
@@ -232,14 +273,16 @@ export default function CarrierTracker() {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
+        fetchNotifications();
       } else {
         setProfile(null);
+        setNotifications([]);
         setLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchNotifications]);
 
   useEffect(() => {
     if (user && profile && isActive) {
@@ -252,11 +295,20 @@ export default function CarrierTracker() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'loads' }, fetchLoads)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'carriers' }, fetchCarriers)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, fetchCustomers)
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        }, (payload) => {
+          setNotifications(prev => [payload.new, ...prev].slice(0, 20));
+          showToast(`New Notification: ${payload.new.title}`, 'info');
+        })
         .subscribe();
 
       return () => supabase.removeChannel(channel);
     }
-  }, [user, profile, isActive]);
+  }, [user, profile, isActive, fetchNotifications, showToast]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -490,10 +542,57 @@ export default function CarrierTracker() {
                 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">?</kbd>
                 <span>shortcuts</span>
               </div>
-              <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[#003366] rounded-full" />
-              </button>
+              <div className="relative">
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Bell className="w-5 h-5" />
+                  {notifications.some(n => !n.is_read) && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+                      <h3 className="font-bold text-gray-900">Notifications</h3>
+                      <button 
+                        onClick={markAllNotificationsRead}
+                        className="text-xs text-[#003366] hover:underline"
+                      >
+                        Mark all as read
+                      </button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        notifications.map((n) => (
+                          <div 
+                            key={n.id} 
+                            onClick={() => markNotificationRead(n.id)}
+                            className={`p-4 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-blue-50/50' : ''}`}
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <p className={`text-sm ${!n.is_read ? 'font-bold text-gray-900' : 'text-gray-700'}`}>
+                                {n.title}
+                              </p>
+                              <span className="text-[10px] text-gray-400">
+                                {new Date(n.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 leading-relaxed">{n.message}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center">
+                          <Bell className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                          <p className="text-sm text-gray-400">No notifications yet</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               <button 
                 onClick={() => fetchLoads()}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
