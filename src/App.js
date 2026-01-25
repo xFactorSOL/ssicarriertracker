@@ -42,7 +42,7 @@ const sanitizeInput = (input) => {
 
 const validatePhone = (phone) => {
   if (!phone) return true; // Optional field
-  const re = /^[\d\s()+\.]+$/;
+  const re = /^[\d\s()+. ]+$/;
   return re.test(phone) && phone.replace(/\D/g, '').length >= 10;
 };
 
