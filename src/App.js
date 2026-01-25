@@ -1263,7 +1263,11 @@ function Dashboard({ loads, carriers, customers, isManager, setActiveTab }) {
                       <td className="py-4 px-4 text-gray-600">
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-gray-400" />
-                          {load.origin} → {load.destination}
+                          {load.origin_city && load.origin_state 
+                            ? `${load.origin_city}, ${load.origin_state}` 
+                            : load.origin || 'N/A'} → {load.destination_city && load.destination_state 
+                            ? `${load.destination_city}, ${load.destination_state}` 
+                            : load.destination || 'N/A'}
                         </div>
                       </td>
                       <td className="py-4 px-4"><StatusBadge status={load.status} /></td>
@@ -1529,9 +1533,17 @@ function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager
                     <td className="py-4 px-6 text-gray-600">{load.carrier_name}</td>
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-1 text-gray-600">
-                        <span className="truncate max-w-[100px]">{load.origin}</span>
+                        <span className="truncate max-w-[100px]">
+                          {load.origin_city && load.origin_state 
+                            ? `${load.origin_city}, ${load.origin_state}` 
+                            : load.origin || 'N/A'}
+                        </span>
                         <span className="text-gray-400">→</span>
-                        <span className="truncate max-w-[100px]">{load.destination}</span>
+                        <span className="truncate max-w-[100px]">
+                          {load.destination_city && load.destination_state 
+                            ? `${load.destination_city}, ${load.destination_state}` 
+                            : load.destination || 'N/A'}
+                        </span>
                       </div>
                     </td>
                     <td className="py-4 px-6">
@@ -2184,12 +2196,20 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
                       <p className="text-xs text-gray-500">Origin</p>
-                      <p className="font-medium text-gray-900">{load.origin || 'N/A'}</p>
+                      <p className="font-medium text-gray-900">
+                        {load.origin_city && load.origin_state 
+                          ? `${load.origin_city}, ${load.origin_state}` 
+                          : load.origin || 'N/A'}
+                      </p>
                     </div>
                     <ArrowRight className="w-5 h-5 text-gray-400" />
                     <div className="flex-1">
                       <p className="text-xs text-gray-500">Destination</p>
-                      <p className="font-medium text-gray-900">{load.destination || 'N/A'}</p>
+                      <p className="font-medium text-gray-900">
+                        {load.destination_city && load.destination_state 
+                          ? `${load.destination_city}, ${load.destination_state}` 
+                          : load.destination || 'N/A'}
+                      </p>
                     </div>
                   </div>
                 </div>
