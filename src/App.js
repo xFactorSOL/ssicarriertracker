@@ -2773,6 +2773,21 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
     
     // Sanitize all input
     const sanitizedData = sanitizeFormData(formData);
+    
+    // Convert empty strings to null for numeric fields
+    if (sanitizedData.miles === '' || sanitizedData.miles === '0') {
+      sanitizedData.miles = null;
+    } else if (sanitizedData.miles) {
+      sanitizedData.miles = parseInt(sanitizedData.miles, 10) || null;
+    }
+    
+    if (sanitizedData.rate_paid_to_carrier === '') {
+      sanitizedData.rate_paid_to_carrier = null;
+    }
+    
+    if (sanitizedData.rate_billed_to_customer === '') {
+      sanitizedData.rate_billed_to_customer = null;
+    }
 
     try {
       if (load) {
