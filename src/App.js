@@ -3770,7 +3770,8 @@ function CarrierDetailModal({ carrier, loads, onClose }) {
   const [sortField, setSortField] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  // eslint-disable-next-line no-unused-vars
+  const [dateRange, _setDateRange] = useState({ start: '', end: '' });
 
   // Get all loads for this carrier
   const carrierLoads = useMemo(() => {
