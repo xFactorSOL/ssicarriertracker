@@ -1837,7 +1837,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
     try {
       const { data, error } = await supabase
         .from('load_audit_logs')
-        .select('*')
+        .select('*, profiles(full_name, email)')
         .eq('load_id', load.id)
         .order('created_at', { ascending: false });
       
