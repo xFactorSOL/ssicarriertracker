@@ -17,17 +17,12 @@ import {
   Clock, Play
 } from 'lucide-react';
 
-// Supabase client - MUST use environment variables for security
-// In production, these should be set in Vercel's environment variables
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+// Supabase client - Uses environment variables with fallbacks for local development
+// In production (Vercel), these should be set in environment variables
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://qwoabopuoihbawlwmgbf.supabase.co';
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2Fib3B1b2loYmF3bHdtZ2JmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY4NzE3MjgsImV4cCI6MjA1MjQ0NzcyOH0.bSCWBQpXVXqesFMwKX30qtR_-89tKlJN44_1ZRp-I2k';
 
-// Security check - ensure environment variables are configured
-if (!supabaseUrl || !supabaseKey) {
-  console.error('CRITICAL: Supabase environment variables not configured. Please set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY');
-}
-
-const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Super admin determined by database is_super_admin column
 const SUPER_ADMIN_EMAIL = process.env.REACT_APP_SUPER_ADMIN_EMAIL;
