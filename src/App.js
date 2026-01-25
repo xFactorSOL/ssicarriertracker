@@ -1763,8 +1763,6 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
         return;
       }
 
-      console.log('Attempting to add note for load:', load.id, 'by user:', user.id);
-
       const { data, error } = await supabase.from('load_notes').insert([{
         load_id: load.id,
         content: sanitizeInput(newNote),
@@ -1772,18 +1770,34 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
       }]).select();
 
       if (error) {
-        console.error('Add note error:', error);
         showToast(`Failed to add note: ${error.message}`, 'error');
       } else {
-        console.log('Note added successfully:', data);
         setNewNote('');
         showToast('Note added', 'success');
         await fetchNotes();
-        await fetchAuditLogs();
       }
     } catch (err) {
-      console.error('Catch error adding note:', err);
       showToast('An unexpected error occurred', 'error');
+    }
+  };
+
+  const deleteNote = async (noteId) => {
+    if (!window.confirm('Are you sure you want to delete this note?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('load_notes')
+        .delete()
+        .eq('id', noteId);
+      
+      if (error) {
+        showToast(`Failed to delete note: ${error.message}`, 'error');
+      } else {
+        showToast('Note deleted', 'success');
+        await fetchNotes();
+      }
+    } catch (err) {
+      showToast('Failed to delete note', 'error');
     }
   };
 
@@ -2220,8 +2234,17 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
                   <p className="text-sm text-gray-400 text-center py-8">Loading notes...</p>
                 ) : notes.length > 0 ? (
                   notes.map((note) => (
-                    <div key={note.id} className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-gray-700">{note.content}</p>
+                    <div key={note.id} className="bg-gray-50 p-4 rounded-lg border border-gray-100 group relative">
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="text-gray-700 flex-1 pr-8">{note.content}</p>
+                        <button
+                          onClick={() => deleteNote(note.id)}
+                          className="absolute right-2 top-2 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                          title="Delete Note"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                       <p className="text-xs text-gray-400 mt-2">
                         {note.profiles?.full_name || 'Unknown'} • {new Date(note.created_at).toLocaleString()}
                       </p>
