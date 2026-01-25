@@ -779,18 +779,46 @@ function ProfileSetup({ user, onComplete, isSuperAdmin, showToast }) {
     }
 
     setLoading(true);
-    const role = isSuperAdmin ? 'manager' : 'user';
     
-    const { error } = await supabase
-      .from('profiles')
-      .upsert([{ id: user.id, email: user.email, full_name: fullName, role }]);
-    
-    if (error) {
-      showToast(error.message, 'error');
-      setLoading(false);
-    } else {
+    try {
+      const role = isSuperAdmin ? 'manager' : 'user';
+      const status = isSuperAdmin ? 'active' : 'pending'; // Super admins auto-active, others pending
+      
+      // Try to update existing profile first
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          full_name: fullName, 
+          role: role,
+          status: status,
+          is_super_admin: isSuperAdmin || false
+        })
+        .eq('id', user.id);
+      
+      // If profile doesn't exist, insert it
+      if (updateError) {
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([{ 
+            id: user.id, 
+            email: user.email, 
+            full_name: fullName, 
+            role: role,
+            status: status,
+            is_super_admin: isSuperAdmin || false
+          }]);
+        
+        if (insertError) {
+          throw insertError;
+        }
+      }
+      
       showToast('Profile created successfully!', 'success');
       onComplete(user.id);
+    } catch (error) {
+      console.error('Profile setup error:', error);
+      showToast(`Error: ${error.message}`, 'error');
+      setLoading(false);
     }
   };
 
