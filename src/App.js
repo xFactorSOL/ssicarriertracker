@@ -208,7 +208,7 @@ export default function CarrierTracker() {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
+  const isSuperAdmin = profile?.is_super_admin === true;
   const isManager = profile?.role === 'manager' || isSuperAdmin;
   const isActive = profile?.status === 'active';
 
@@ -3883,7 +3883,7 @@ function UsersPage({ isSuperAdmin, showToast }) {
                   </div>
                   </td>
                 <td className="py-4 px-6">
-                  {u.email !== SUPER_ADMIN_EMAIL ? (
+                  {!u.is_super_admin ? (
                     <select
                       value={u.role}
                       onChange={(e) => updateRole(u.id, e.target.value)}
@@ -3917,7 +3917,7 @@ function UsersPage({ isSuperAdmin, showToast }) {
                         <CheckCircle className="w-4 h-4" />
                       </button>
                     )}
-                    {u.status === 'active' && u.email !== SUPER_ADMIN_EMAIL && (
+                    {u.status === 'active' && !u.is_super_admin && (
                       <button
                         onClick={() => updateUserStatus(u.id, 'suspended')}
                         className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -3935,7 +3935,7 @@ function UsersPage({ isSuperAdmin, showToast }) {
                         <Play className="w-4 h-4" />
                       </button>
                     )}
-                    {u.email !== SUPER_ADMIN_EMAIL && (
+                    {!u.is_super_admin && (
                       <button
                         onClick={() => deleteUser(u.id)}
                         className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -3944,7 +3944,7 @@ function UsersPage({ isSuperAdmin, showToast }) {
                         <X className="w-4 h-4" />
                       </button>
                     )}
-                    {u.email !== SUPER_ADMIN_EMAIL && u.status === 'suspended' && (
+                    {!u.is_super_admin && u.status === 'suspended' && (
                       <button
                         onClick={() => hardDeleteUser(u.id)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
