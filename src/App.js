@@ -11,7 +11,7 @@ import {
   Building, User, Package, BarChart3, Home, Layers, ArrowUpRight,
   ArrowDownRight, RefreshCw, AlertTriangle, Bell,
   MessageSquare, History, Target, Award, Activity,
-  ArrowRight,
+  ArrowRight, Filter,
   CreditCard, Receipt,
   FileUp, File, ClipboardCheck, Calendar, FileText,
   Clock, Play
@@ -1522,82 +1522,177 @@ function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager
         </div>
       </div>
 
-      {/* Loads Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      {/* Loads Table - Clean Modern Design */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Load #</th>
-                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
-                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Carrier</th>
-                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Route</th>
-                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Margin</th>
-                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+            <thead className="bg-gray-50/80">
+              <tr className="border-b border-gray-100">
+                <th className="text-left py-4 px-5 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">Customer <Filter className="w-3 h-3 opacity-40" /></div>
+                </th>
+                <th className="text-left py-4 px-5 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">Carrier <Filter className="w-3 h-3 opacity-40" /></div>
+                </th>
+                <th className="text-left py-4 px-5 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">Status <Filter className="w-3 h-3 opacity-40" /></div>
+                </th>
+                <th className="text-left py-4 px-5 text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                <th className="text-left py-4 px-5 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">Lane <Filter className="w-3 h-3 opacity-40" /></div>
+                </th>
+                <th className="text-left py-4 px-5 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">Pick Date <Filter className="w-3 h-3 opacity-40" /></div>
+                </th>
+                <th className="text-left py-4 px-5 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-1">Drop Date <Filter className="w-3 h-3 opacity-40" /></div>
+                </th>
+                <th className="text-right py-4 px-5 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filteredLoads.map((load) => {
-                const margin = (parseFloat(load.rate_billed_to_customer) || 0) - (parseFloat(load.rate_paid_to_carrier) || 0);
+                // Calculate status color and timing
+                const now = new Date();
+                const scheduledDelivery = load.scheduled_delivery_date ? new Date(load.scheduled_delivery_date) : null;
+                const isLate = scheduledDelivery && now > scheduledDelivery && load.status !== 'delivered';
+                const isOnTime = load.status === 'delivered' || (scheduledDelivery && now <= scheduledDelivery);
+                
+                // Status styling
+                const statusConfig = {
+                  delivered: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', bar: 'bg-emerald-500' },
+                  in_transit: isLate 
+                    ? { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', bar: 'bg-rose-500' }
+                    : { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', bar: 'bg-emerald-500' },
+                  dispatched: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', bar: 'bg-amber-500' },
+                  late: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', bar: 'bg-rose-500' },
+                  quoted: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', bar: 'bg-purple-500' }
+                };
+                const currentStatus = statusConfig[load.status] || statusConfig.dispatched;
+
+                // Customer avatar colors based on first letter
+                const avatarColors = {
+                  A: 'bg-red-500', B: 'bg-orange-500', C: 'bg-amber-500', D: 'bg-yellow-500',
+                  E: 'bg-lime-500', F: 'bg-green-500', G: 'bg-emerald-500', H: 'bg-teal-500',
+                  I: 'bg-cyan-500', J: 'bg-sky-500', K: 'bg-blue-500', L: 'bg-indigo-500',
+                  M: 'bg-violet-500', N: 'bg-purple-500', O: 'bg-fuchsia-500', P: 'bg-pink-500',
+                  Q: 'bg-rose-500', R: 'bg-red-600', S: 'bg-orange-600', T: 'bg-amber-600',
+                  U: 'bg-yellow-600', V: 'bg-lime-600', W: 'bg-green-600', X: 'bg-emerald-600',
+                  Y: 'bg-teal-600', Z: 'bg-cyan-600'
+                };
+                const customerInitial = (load.customer_name || 'U')[0].toUpperCase();
+                const avatarColor = avatarColors[customerInitial] || 'bg-gray-500';
+
+                const formatDate = (date) => {
+                  if (!date) return '—';
+                  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                };
+
                 return (
-                  <tr key={load.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-6">
-                      <span className="font-semibold text-gray-900">{load.load_number}</span>
-                    </td>
-                    <td className="py-4 px-6 text-gray-600">{load.customer_name}</td>
-                    <td className="py-4 px-6 text-gray-600">{load.carrier_name}</td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <span className="truncate max-w-[100px]">
-                          {load.origin_city && load.origin_state 
-                            ? `${load.origin_city}, ${load.origin_state}` 
-                            : load.origin || 'N/A'}
-                        </span>
-                        <span className="text-gray-400">→</span>
-                        <span className="truncate max-w-[100px]">
-                          {load.destination_city && load.destination_state 
-                            ? `${load.destination_city}, ${load.destination_state}` 
-                            : load.destination || 'N/A'}
-                        </span>
+                  <tr 
+                    key={load.id} 
+                    className="hover:bg-blue-50/30 transition-all duration-150 cursor-pointer group"
+                    onClick={() => setViewingLoad(load)}
+                  >
+                    {/* Customer with Avatar */}
+                    <td className="py-4 px-5">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 ${avatarColor} rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-sm`}>
+                          {customerInitial}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{load.customer_name || 'Unknown'}</p>
+                          <p className="text-xs text-gray-400">#{load.load_number}</p>
+                        </div>
                       </div>
                     </td>
-                    <td className="py-4 px-6">
-                      <select
-                        value={load.status}
-                        onChange={(e) => updateStatus(load.id, e.target.value)}
-                        className="text-sm border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-[#003366]"
-                      >
-                        <option value="dispatched">Dispatched</option>
-                        <option value="in_transit">In Transit</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="late">Late</option>
-                      </select>
+                    
+                    {/* Carrier */}
+                    <td className="py-4 px-5">
+                      <p className="text-sm text-gray-700">{load.carrier_name || '—'}</p>
                     </td>
-                    <td className="py-4 px-6">
-                      <span className={`font-semibold ${margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                        ${margin.toFixed(2)}
+                    
+                    {/* Status Badge */}
+                    <td className="py-4 px-5">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${currentStatus.bg} ${currentStatus.text} ${currentStatus.border}`}>
+                        {load.status === 'in_transit' ? 'In Transit' : 
+                         load.status === 'delivered' ? 'Delivered' :
+                         load.status === 'dispatched' ? 'Dispatched' :
+                         load.status === 'late' ? 'Late' : 
+                         load.status?.charAt(0).toUpperCase() + load.status?.slice(1)}
                       </span>
                     </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setViewingLoad(load)}
-                          className="p-2 text-gray-400 hover:text-[#003366] hover:bg-blue-50 rounded-lg transition-colors"
-                          title="View Details"
+                    
+                    {/* Progress Bar */}
+                    <td className="py-4 px-5">
+                      <div className="w-24 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${currentStatus.bar}`}
+                          style={{ 
+                            width: load.status === 'delivered' ? '100%' : 
+                                   load.status === 'in_transit' ? '60%' : 
+                                   load.status === 'dispatched' ? '25%' : '100%' 
+                          }}
+                        />
+                      </div>
+                    </td>
+                    
+                    {/* Lane (Route) */}
+                    <td className="py-4 px-5">
+                      <p className="text-sm text-gray-700">
+                        {load.origin_city && load.origin_state 
+                          ? `${load.origin_city}, ${load.origin_state}` 
+                          : load.origin || '—'}
+                        <span className="text-gray-400 mx-1">→</span>
+                        {load.destination_city && load.destination_state 
+                          ? `${load.destination_city}, ${load.destination_state}` 
+                          : load.destination || '—'}
+                      </p>
+                    </td>
+                    
+                    {/* Pick Date */}
+                    <td className="py-4 px-5">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-6 rounded-full ${load.pickup_date ? (isOnTime ? 'bg-amber-400' : 'bg-amber-400') : 'bg-gray-200'}`} />
+                        <span className="text-sm text-gray-700">{formatDate(load.pickup_date)}</span>
+                      </div>
+                    </td>
+                    
+                    {/* Drop Date */}
+                    <td className="py-4 px-5">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-6 rounded-full ${
+                          load.status === 'delivered' ? 'bg-emerald-500' :
+                          isLate ? 'bg-rose-500' :
+                          scheduledDelivery ? 'bg-amber-400' : 'bg-gray-200'
+                        }`} />
+                        <span className="text-sm text-gray-700">{formatDate(load.scheduled_delivery_date)}</span>
+                      </div>
+                    </td>
+                    
+                    {/* Actions */}
+                    <td className="py-4 px-5 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <select
+                          value={load.status}
+                          onChange={(e) => { e.stopPropagation(); updateStatus(load.id, e.target.value); }}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-[#003366] bg-white"
                         >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                          <option value="dispatched">Dispatched</option>
+                          <option value="in_transit">In Transit</option>
+                          <option value="delivered">Delivered</option>
+                          <option value="late">Late</option>
+                        </select>
                         <button
-                          onClick={() => { setEditingLoad(load); setShowForm(true); }}
-                          className="p-2 text-gray-400 hover:text-[#003366] hover:bg-blue-50 rounded-lg transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setEditingLoad(load); setShowForm(true); }}
+                          className="p-1.5 text-gray-400 hover:text-[#003366] hover:bg-blue-50 rounded-lg transition-colors"
                           title="Edit"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => deleteLoad(load.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          onClick={(e) => { e.stopPropagation(); deleteLoad(load.id); }}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1610,9 +1705,10 @@ function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager
             </tbody>
           </table>
           {filteredLoads.length === 0 && (
-            <div className="text-center py-12 text-gray-400">
-              <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No loads found</p>
+            <div className="text-center py-16 text-gray-400">
+              <Package className="w-16 h-16 mx-auto mb-4 opacity-30" />
+              <p className="text-lg font-medium">No loads found</p>
+              <p className="text-sm">Try adjusting your filters or create a new load</p>
             </div>
           )}
         </div>
