@@ -432,9 +432,7 @@ export default function CarrierTracker() {
               <Layers className="w-10 h-10 text-white animate-pulse" />
             </div>
           </div>
-          <h2 className="mt-6 text-xl font-bold text-gray-900">
-            SEABOARD SOLUTIONS
-          </h2>
+          <img src="/seaboard-logo.png" alt="Seaboard Solutions" className="mt-6 h-12 object-contain" />
           <p className="mt-2 text-gray-500 font-medium text-sm">Loading your dashboard...</p>
         </div>
       </div>
@@ -654,8 +652,8 @@ function LoginPage({ email, setEmail, password, setPassword, isLogin, setIsLogin
               <Layers className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">SEABOARD SOLUTIONS</h1>
-              <p className="text-blue-200/60 text-xs tracking-widest uppercase">Supply Chain Intelligence</p>
+              <img src="/seaboard-logo.png" alt="Seaboard Solutions" className="h-10 brightness-0 invert" />
+              <p className="text-blue-200/60 text-xs tracking-widest uppercase mt-1">Supply Chain Intelligence</p>
             </div>
           </div>
           <h2 className="text-4xl font-light text-white leading-tight mb-6">
@@ -691,7 +689,7 @@ function LoginPage({ email, setEmail, password, setPassword, isLogin, setIsLogin
               <Layers className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 tracking-tight">SEABOARD SOLUTIONS</h1>
+              <img src="/seaboard-logo.png" alt="Seaboard Solutions" className="h-8" />
             </div>
           </div>
           
@@ -890,17 +888,13 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, isManager, 
   return (
     <aside className={`fixed left-0 top-0 h-full bg-white border-r border-gray-200 ${collapsed ? 'w-20' : 'w-64'} transition-all duration-300 z-40 flex flex-col`}>
       {/* Logo */}
-      <div className="p-5 flex items-center gap-3 border-b border-gray-100">
-        <div className="bg-[#003366] p-2.5 rounded-lg flex-shrink-0">
-          <Layers className="w-5 h-5 text-white" />
-        </div>
-        {!collapsed && (
-          <div className="overflow-hidden">
-            <h1 className="font-bold text-sm leading-tight tracking-tight text-gray-900">
-              SEABOARD
-            </h1>
-            <p className="text-[10px] text-gray-400 tracking-widest uppercase">SOLUTIONS</p>
+      <div className="p-4 flex items-center justify-center border-b border-gray-100">
+        {collapsed ? (
+          <div className="bg-[#003366] p-2.5 rounded-lg">
+            <Layers className="w-5 h-5 text-white" />
           </div>
+        ) : (
+          <img src="/seaboard-logo.png" alt="Seaboard Solutions" className="h-10 object-contain" />
         )}
       </div>
 
