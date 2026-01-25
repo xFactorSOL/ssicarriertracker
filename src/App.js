@@ -1938,16 +1938,9 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
   }, [load?.id, showToast]);
 
   useEffect(() => {
-    // Stagger fetches to prevent browser resource exhaustion
-    const notesTimer = setTimeout(() => fetchNotes(), 100);
-    const docsTimer = setTimeout(() => fetchDocuments(), 400);
-    const auditTimer = setTimeout(() => fetchAuditLogs(), 700);
-    
-    return () => {
-      clearTimeout(notesTimer);
-      clearTimeout(docsTimer);
-      clearTimeout(auditTimer);
-    };
+    fetchNotes();
+    fetchDocuments();
+    fetchAuditLogs();
   }, [fetchNotes, fetchDocuments, fetchAuditLogs]);
 
   const addNote = async () => {
