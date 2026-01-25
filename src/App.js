@@ -24,9 +24,6 @@ const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Super admin determined by database is_super_admin column
-const SUPER_ADMIN_EMAIL = process.env.REACT_APP_SUPER_ADMIN_EMAIL;
-
 // ============================================
 // SECURITY: Input Validation & Sanitization
 // ============================================
@@ -215,19 +212,20 @@ export default function CarrierTracker() {
     setToast({ message, type });
   }, []);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    
-    if (!error && data) {
-      setNotifications(data);
-    }
-  }, [user]);
+  // Notifications disabled to reduce API load
+  // const fetchNotifications = useCallback(async () => {
+  //   if (!user) return;
+  //   const { data, error } = await supabase
+  //     .from('notifications')
+  //     .select('*')
+  //     .eq('user_id', user.id)
+  //     .order('created_at', { ascending: false })
+  //     .limit(20);
+  //   
+  //   if (!error && data) {
+  //     setNotifications(data);
+  //   }
+  // }, [user]);
 
   const markNotificationRead = async (id) => {
     const { error } = await supabase
@@ -397,7 +395,7 @@ export default function CarrierTracker() {
     e.preventDefault();
     setLoading(true);
     
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       showToast(error.message, 'error');
       setLoading(false);
@@ -507,14 +505,14 @@ export default function CarrierTracker() {
               <p className="text-sm text-gray-500">
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
-          </div>
+            </div>
             <div className="flex items-center gap-2">
               <div className="hidden lg:flex items-center gap-1 text-xs text-gray-400 mr-2">
                 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">?</kbd>
                 <span>shortcuts</span>
-              </div>
+          </div>
               <div className="relative">
-                <button 
+          <button
                   onClick={() => setShowNotifications(!showNotifications)}
                   className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 >
@@ -533,7 +531,7 @@ export default function CarrierTracker() {
                         className="text-xs text-[#003366] hover:underline"
                       >
                         Mark all as read
-                      </button>
+          </button>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
                       {notifications.length > 0 ? (
@@ -572,8 +570,8 @@ export default function CarrierTracker() {
                 <RefreshCw className="w-5 h-5" />
               </button>
             </div>
-          </div>
-        </header>
+        </div>
+      </header>
 
         {/* Content Area */}
         <div className="p-8">
@@ -761,7 +759,7 @@ function ProfileSetup({ user, onComplete, isSuperAdmin, showToast }) {
       
       // Try to update existing profile first
       const { error: updateError } = await supabase
-        .from('profiles')
+      .from('profiles')
         .update({ 
           full_name: fullName, 
           role: role,
