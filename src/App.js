@@ -1869,7 +1869,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
     try {
       const { data, error } = await supabase
         .from('load_audit_logs')
-        .select('id, load_id, user_id, action, field_name, old_value, new_value, created_at, profiles(full_name, email)')
+        .select('*')
         .eq('load_id', load.id)
         .order('created_at', { ascending: false });
       
@@ -1897,7 +1897,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
     try {
       const { data, error } = await supabase
         .from('load_notes')
-        .select('id, load_id, user_id, content, created_at, profiles(full_name)')
+        .select('*')
         .eq('load_id', load.id)
         .order('created_at', { ascending: false });
       
@@ -1925,7 +1925,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
     try {
       const { data, error } = await supabase
         .from('load_documents')
-        .select('id, load_id, user_id, document_type, file_name, file_path, file_size, mime_type, created_at')
+        .select('*')
         .eq('load_id', load.id)
         .order('created_at', { ascending: false });
       
@@ -1961,13 +1961,14 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
         return;
       }
 
-      const { data, error } = await supabase.from('load_notes').insert([{
+      const { error } = await supabase.from('load_notes').insert({
         load_id: load.id,
         content: sanitizeInput(newNote),
         user_id: currentUser.id
-      }]).select();
+      });
 
       if (error) {
+        console.error('Note insert error:', error);
         showToast(`Failed to add note: ${error.message}`, 'error');
       } else {
         setNewNote('');
@@ -1975,7 +1976,8 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
         await fetchNotes();
       }
     } catch (err) {
-      showToast('An unexpected error occurred', 'error');
+      console.error('Note insert exception:', err);
+      showToast(`Failed to add note: ${err.message}`, 'error');
     }
   };
 
