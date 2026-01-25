@@ -3975,6 +3975,7 @@ function UsersPage({ isSuperAdmin, showToast }) {
 function InviteUserModal({ onClose, onSuccess, showToast }) {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState('user');
   const [loading, setLoading] = useState(false);
 
@@ -3988,6 +3989,7 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
         body: {
           email: sanitizeInput(email.toLowerCase()),
           fullName: sanitizeInput(fullName),
+          password: password,
           role: role
         }
       });
@@ -4003,7 +4005,7 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
         throw new Error(data.error);
       }
 
-      showToast(data.message || `User created! ${fullName} will receive an email to set their password.`, 'success');
+      showToast(data.message || `User created! Email: ${email}, Password: ${password}`, 'success');
       onSuccess();
     } catch (error) {
       console.error('User creation error:', error);
@@ -4023,9 +4025,6 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <p className="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg border border-blue-100">
-            Note: For security, new users should sign up with their email. You can then approve them in the Team list.
-          </p>
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
             <input
@@ -4047,6 +4046,19 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
             />
         </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input
+              type="password"
+              required
+              minLength="6"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Minimum 6 characters"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+            />
+            <p className="text-xs text-gray-500 mt-1">User can change this password later in Settings</p>
+        </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
             <select
               value={role}
@@ -4062,7 +4074,7 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
             disabled={loading}
             className="w-full bg-[#003366] text-white py-3 rounded-lg font-semibold hover:bg-[#002244] disabled:opacity-50"
           >
-            Send Instructions
+            {loading ? 'Creating...' : 'Create User'}
           </button>
         </form>
       </div>

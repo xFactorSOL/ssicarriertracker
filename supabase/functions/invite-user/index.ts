@@ -58,12 +58,19 @@ serve(async (req) => {
     }
 
     // Get request data
-    const { email, fullName, role } = await req.json()
+    const { email, fullName, password, role } = await req.json()
 
     // Validate input
-    if (!email || !fullName || !role) {
+    if (!email || !fullName || !password || !role) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: 'Password must be at least 6 characters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -99,9 +106,10 @@ serve(async (req) => {
       )
     }
 
-    // Create auth user with admin API (sends magic link email automatically)
+    // Create auth user with password
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email.toLowerCase(),
+      password: password,
       email_confirm: true, // Auto-confirm email
       user_metadata: {
         full_name: fullName
@@ -123,23 +131,10 @@ serve(async (req) => {
 
     if (profileError) throw profileError
 
-    // Send password reset email so they can set their password
-    const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
-      email.toLowerCase(),
-      {
-        redirectTo: `${Deno.env.get('APP_URL') || 'http://localhost:3000'}/reset-password`
-      }
-    )
-
-    if (resetError) {
-      console.error('Password reset email error:', resetError)
-      // Don't fail the whole request if email fails
-    }
-
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `User created successfully. ${fullName} will receive an email to set their password.`,
+        message: `User created successfully! Email: ${email} | Password: ${password}`,
         userId: authUser.user.id 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
