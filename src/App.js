@@ -17,14 +17,20 @@ import {
   Clock, Play
 } from 'lucide-react';
 
-// Supabase client - uses environment variables for security
-// Create a .env file with REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://qwoabopuoihbawlwmgbf.supabase.co';
-const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2Fib3B1b2loYmF3bHdtZ2JmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3OTg3OTYsImV4cCI6MjA4NDM3NDc5Nn0.5Xwxjoykox37Aha9-jmol1UN8vVc3epeX-0jwElTUzE';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Supabase client - MUST use environment variables for security
+// In production, these should be set in Vercel's environment variables
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-// Super admin determined by database is_super_admin column, with email fallback
-const SUPER_ADMIN_EMAIL = process.env.REACT_APP_SUPER_ADMIN_EMAIL || 'fbeta280@gmail.com';
+// Security check - ensure environment variables are configured
+if (!supabaseUrl || !supabaseKey) {
+  console.error('CRITICAL: Supabase environment variables not configured. Please set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY');
+}
+
+const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+
+// Super admin determined by database is_super_admin column
+const SUPER_ADMIN_EMAIL = process.env.REACT_APP_SUPER_ADMIN_EMAIL;
 
 // ============================================
 // SECURITY: Input Validation & Sanitization
@@ -63,6 +69,27 @@ const validateNumber = (value, fieldName, min = 0) => {
     return `${fieldName} must be at least ${min}`;
   }
   return null;
+};
+
+// Password strength validation
+const validatePassword = (password) => {
+  const errors = [];
+  if (password.length < 8) {
+    errors.push('at least 8 characters');
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push('one uppercase letter');
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('one lowercase letter');
+  }
+  if (!/[0-9]/.test(password)) {
+    errors.push('one number');
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    errors.push('one special character');
+  }
+  return errors;
 };
 
 // Sanitize form data object
@@ -2374,11 +2401,14 @@ function DeliveryConfirmModal({ load, onClose, onSuccess, showToast }) {
 
       if (error) throw error;
 
-      // Add a note about the delivery
+      // Add a note about the delivery (sanitized)
+      const deliveryNoteContent = sanitizeInput(
+        `Delivery confirmed. Received by: ${formData.receiver_name || 'N/A'}. ${formData.delivery_notes ? `Notes: ${formData.delivery_notes}` : ''}`
+      );
       await supabase.from('load_notes').insert([{
         load_id: load.id,
         user_id: user?.id,
-        content: `Delivery confirmed. Received by: ${formData.receiver_name || 'N/A'}. ${formData.delivery_notes ? `Notes: ${formData.delivery_notes}` : ''}`
+        content: deliveryNoteContent
       }]);
 
       onSuccess();
@@ -2752,8 +2782,11 @@ function CarriersPage({ carriers, loads, onRefresh, showToast }) {
   );
 
   const saveCarrier = async (data) => {
+    // Sanitize all input data
+    const sanitizedData = sanitizeFormData(data);
+    
     if (editingCarrier) {
-      const { error } = await supabase.from('carriers').update(data).eq('id', editingCarrier.id);
+      const { error } = await supabase.from('carriers').update(sanitizedData).eq('id', editingCarrier.id);
       if (error) {
         showToast(error.message, 'error');
       } else {
@@ -2763,7 +2796,7 @@ function CarriersPage({ carriers, loads, onRefresh, showToast }) {
         setEditingCarrier(null);
       }
     } else {
-      const { error } = await supabase.from('carriers').insert([data]);
+      const { error } = await supabase.from('carriers').insert([sanitizedData]);
       if (error) {
         showToast(error.message, 'error');
       } else {
@@ -3244,8 +3277,11 @@ function CustomersPage({ customers, loads, onRefresh, showToast }) {
   );
 
   const saveCustomer = async (data) => {
+    // Sanitize all input data
+    const sanitizedData = sanitizeFormData(data);
+    
     if (editingCustomer) {
-      const { error } = await supabase.from('customers').update(data).eq('id', editingCustomer.id);
+      const { error } = await supabase.from('customers').update(sanitizedData).eq('id', editingCustomer.id);
       if (error) {
         showToast(error.message, 'error');
       } else {
@@ -3255,7 +3291,7 @@ function CustomersPage({ customers, loads, onRefresh, showToast }) {
         setEditingCustomer(null);
       }
     } else {
-      const { error } = await supabase.from('customers').insert([data]);
+      const { error } = await supabase.from('customers').insert([sanitizedData]);
       if (error) {
         showToast(error.message, 'error');
       } else {
@@ -3805,8 +3841,8 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
       const { error } = await supabase
         .from('profiles')
         .insert([{
-          email: email.toLowerCase(),
-          full_name: fullName,
+          email: sanitizeInput(email.toLowerCase()),
+          full_name: sanitizeInput(fullName),
           role: role,
           status: 'pending' // They still need to sign up to create the auth user
         }]);
@@ -3892,7 +3928,9 @@ function SettingsPage({ profile, showToast }) {
 
   const updateProfile = async () => {
     setLoading(true);
-    const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', profile.id);
+    // Sanitize the name input
+    const sanitizedName = sanitizeInput(fullName);
+    const { error } = await supabase.from('profiles').update({ full_name: sanitizedName }).eq('id', profile.id);
     if (error) {
       showToast(error.message, 'error');
     } else {
@@ -3908,23 +3946,15 @@ function SettingsPage({ profile, showToast }) {
       return;
     }
     
-    if (newPassword.length < 8) {
-      showToast('Password must be at least 8 characters', 'error');
-      return;
-    }
-    
     if (newPassword !== confirmPassword) {
       showToast('New passwords do not match', 'error');
       return;
     }
     
-    // Check password strength
-    const hasUppercase = /[A-Z]/.test(newPassword);
-    const hasLowercase = /[a-z]/.test(newPassword);
-    const hasNumber = /[0-9]/.test(newPassword);
-    
-    if (!hasUppercase || !hasLowercase || !hasNumber) {
-      showToast('Password must contain uppercase, lowercase, and a number', 'error');
+    // Check password strength using centralized validation
+    const passwordErrors = validatePassword(newPassword);
+    if (passwordErrors.length > 0) {
+      showToast(`Password must include: ${passwordErrors.join(', ')}`, 'error');
       return;
     }
     
