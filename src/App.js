@@ -2739,7 +2739,7 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
             origin_state: stateAbbr
           }));
           showToast(`Found: ${city}, ${stateAbbr}`, 'success');
-        } else {
+    } else {
           setFormData(prev => ({
             ...prev,
             destination_city: city,
@@ -2759,19 +2759,9 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
 
   // Calculate miles using OSRM (free routing service)
   const calculateMiles = async () => {
-    // Debug log to see what's in formData
-    console.log('Calculate Miles - formData:', {
-      origin_city: formData.origin_city,
-      origin_state: formData.origin_state,
-      destination_city: formData.destination_city,
-      destination_state: formData.destination_state
-    });
-    
     // Need both origin and destination - check city fields
     const hasOrigin = formData.origin_city && formData.origin_state;
     const hasDestination = formData.destination_city && formData.destination_state;
-    
-    console.log('Has origin:', hasOrigin, 'Has destination:', hasDestination);
     
     if (!hasOrigin && !hasDestination) {
       showToast('Please lookup both origin and destination ZIP codes first', 'error');
@@ -2789,14 +2779,12 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
     setZipLookupLoading(true);
     
     try {
-      // Get coordinates for origin using city, state - use structured search
-      console.log('Looking up origin:', formData.origin_city, formData.origin_state);
+      // Get coordinates for origin using city, state
       const originResponse = await fetch(
         `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(formData.origin_city)}&state=${encodeURIComponent(formData.origin_state)}&country=USA&format=json&limit=1`,
         { headers: { 'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0' } }
       );
       const originData = await originResponse.json();
-      console.log('Origin data:', originData);
       
       if (!originData || originData.length === 0) {
         showToast('Could not find origin location on map', 'error');
@@ -2804,17 +2792,12 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
         return;
       }
       
-      // Small delay to respect Nominatim rate limits (1 req/sec)
-      await new Promise(resolve => setTimeout(resolve, 1100));
-      
-      // Get coordinates for destination using city, state - use structured search
-      console.log('Looking up destination:', formData.destination_city, formData.destination_state);
+      // Get coordinates for destination using city, state
       const destResponse = await fetch(
         `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(formData.destination_city)}&state=${encodeURIComponent(formData.destination_state)}&country=USA&format=json&limit=1`,
         { headers: { 'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0' } }
       );
       const destData = await destResponse.json();
-      console.log('Destination data:', destData);
       
       if (!destData || destData.length === 0) {
         showToast('Could not find destination location on map', 'error');
@@ -3005,8 +2988,8 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-gray-600 mb-1">City *</label>
-                  <input
-                    type="text"
+            <input
+              type="text"
                     required
                     value={formData.origin_city}
                     onChange={(e) => setFormData({...formData, origin_city: e.target.value})}
@@ -3016,8 +2999,8 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">State *</label>
-                  <input
-                    type="text"
+            <input
+              type="text"
                     required
                     maxLength="2"
                     value={formData.origin_state}
@@ -3163,8 +3146,8 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Miles</label>
               <div className="flex gap-2">
-                <input
-                  type="number"
+            <input
+              type="number"
                   value={formData.miles}
                   onChange={(e) => setFormData({...formData, miles: e.target.value})}
                   className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
@@ -3187,12 +3170,12 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
             <input
               type="number"
               step="0.01"
-                value={formData.rate_billed_to_customer}
-                onChange={(e) => setFormData({...formData, rate_billed_to_customer: e.target.value})}
+              value={formData.rate_billed_to_customer}
+              onChange={(e) => setFormData({...formData, rate_billed_to_customer: e.target.value})}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
                 placeholder="0.00"
-              />
-            </div>
+            />
+          </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Rate Paid to Carrier</label>
             <input
@@ -4154,8 +4137,8 @@ function CarrierDetailModal({ carrier, loads, onClose }) {
 
               {/* Loads Table */}
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
+      <div className="overflow-x-auto">
+        <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -4185,14 +4168,14 @@ function CarrierDetailModal({ carrier, loads, onClose }) {
                             }}>
                           Rate {sortField === 'rate_paid_to_carrier' && (sortDirection === 'asc' ? '↑' : '↓')}
                         </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
                       {filteredLoads.map((load) => (
-                        <tr key={load.id} className="hover:bg-gray-50">
+                <tr key={load.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">
                             {load.load_number}
-                          </td>
+                  </td>
                           <td className="px-4 py-3 text-sm text-gray-500">
                             {new Date(load.created_at).toLocaleDateString()}
                           </td>
@@ -4210,11 +4193,11 @@ function CarrierDetailModal({ carrier, loads, onClose }) {
                               'bg-amber-100 text-amber-700'
                             }`}>
                               {load.status.replace('_', ' ')}
-                            </span>
-                          </td>
+                    </span>
+                  </td>
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">
                             ${parseFloat(load.rate_paid_to_carrier || 0).toLocaleString()}
-                          </td>
+                  </td>
                         </tr>
                       ))}
                     </tbody>
