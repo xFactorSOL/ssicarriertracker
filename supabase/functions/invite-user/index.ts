@@ -17,6 +17,56 @@ serve(async (req) => {
   try {
     console.log('📨 Edge Function invoked')
     
+    // Verify the request is from an authenticated super admin
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      console.error('❌ No auth header')
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Create client to verify user auth
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: authHeader }
+        }
+      }
+    )
+
+    const { data: { user: callingUser }, error: userError } = await supabaseClient.auth.getUser()
+    
+    if (userError || !callingUser) {
+      console.error('❌ Auth error:', userError)
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log('✅ User authenticated:', callingUser.id)
+
+    // Check if user is super admin
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('is_super_admin')
+      .eq('id', callingUser.id)
+      .single()
+
+    if (!profile?.is_super_admin) {
+      console.error('❌ Not super admin')
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log('✅ Super admin verified')
+    
     // Get request data
     const { email, fullName, password, role } = await req.json()
 
