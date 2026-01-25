@@ -3937,10 +3937,10 @@ function UsersPage({ isSuperAdmin, showToast }) {
                     {!u.is_super_admin && (
                       <button
                         onClick={() => deleteUser(u.id)}
-                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                        title="Suspend"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete User"
                       >
-                        <X className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                     {!u.is_super_admin && u.status === 'suspended' && (
