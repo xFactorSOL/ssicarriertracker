@@ -2903,6 +2903,7 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
 function CarriersPage({ carriers, loads, onRefresh, showToast }) {
   const [showForm, setShowForm] = useState(false);
   const [editingCarrier, setEditingCarrier] = useState(null);
+  const [selectedCarrier, setSelectedCarrier] = useState(null);
   const [search, setSearch] = useState('');
 
   const carrierStats = useMemo(() => {
@@ -2988,75 +2989,86 @@ function CarriersPage({ carriers, loads, onRefresh, showToast }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCarriers.map((carrier) => (
-          <div key={carrier.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-[#003366] rounded-lg flex items-center justify-center">
-                  <Truck className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{carrier.name}</h3>
-                  <p className="text-sm text-gray-500">MC# {carrier.mc_number || 'N/A'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => { setEditingCarrier(carrier); setShowForm(true); }}
-                  className="p-2 text-gray-400 hover:text-[#003366] hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Edit"
+          <div key={carrier.id} className="bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div 
+                  className="flex items-center gap-3 flex-1 cursor-pointer"
+                  onClick={() => setSelectedCarrier(carrier)}
                 >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => deleteCarrier(carrier.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500 mb-1">Total Loads</p>
-                <p className="text-xl font-bold text-gray-900">{carrier.totalLoads}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500 mb-1">On-Time %</p>
-                <p className={`text-xl font-bold ${carrier.otd >= 90 ? 'text-emerald-600' : carrier.otd >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
-                  {carrier.otd}%
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 space-y-2">
-              {carrier.contact_phone && (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Phone className="w-4 h-4" />
-                  {carrier.contact_phone}
+                  <div className="w-12 h-12 bg-[#003366] rounded-lg flex items-center justify-center group-hover:bg-[#004080] transition-colors">
+                    <Truck className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 group-hover:text-[#003366] transition-colors">{carrier.name}</h3>
+                    <p className="text-sm text-gray-500">MC# {carrier.mc_number || 'N/A'}</p>
+                  </div>
                 </div>
-              )}
-              {carrier.safety_rating && carrier.safety_rating !== 'None' && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Shield className={`w-4 h-4 ${
-                    carrier.safety_rating === 'Satisfactory' ? 'text-green-500' :
-                    carrier.safety_rating === 'Conditional' ? 'text-amber-500' :
-                    'text-red-500'
-                  }`} />
-                  <span className={`${
-                    carrier.safety_rating === 'Satisfactory' ? 'text-green-600' :
-                    carrier.safety_rating === 'Conditional' ? 'text-amber-600' :
-                    'text-red-600'
-                  }`}>
-                    {carrier.safety_rating}
-                  </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditingCarrier(carrier); setShowForm(true); }}
+                    className="p-2 text-gray-400 hover:text-[#003366] hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteCarrier(carrier.id); }}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-              )}
-              {carrier.city && carrier.state && (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <MapPin className="w-4 h-4" />
-                  {carrier.city}, {carrier.state}
+              </div>
+              <div 
+                className="grid grid-cols-2 gap-4 cursor-pointer"
+                onClick={() => setSelectedCarrier(carrier)}
+              >
+                <div className="bg-gray-50 rounded-lg p-3 group-hover:bg-blue-50 transition-colors">
+                  <p className="text-xs text-gray-500 mb-1">Total Loads</p>
+                  <p className="text-xl font-bold text-gray-900">{carrier.totalLoads}</p>
                 </div>
-              )}
+                <div className="bg-gray-50 rounded-lg p-3 group-hover:bg-blue-50 transition-colors">
+                  <p className="text-xs text-gray-500 mb-1">On-Time %</p>
+                  <p className={`text-xl font-bold ${carrier.otd >= 90 ? 'text-emerald-600' : carrier.otd >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
+                    {carrier.otd}%
+                  </p>
+                </div>
+              </div>
+              <div 
+                className="mt-4 space-y-2 cursor-pointer"
+                onClick={() => setSelectedCarrier(carrier)}
+              >
+                {carrier.contact_phone && (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Phone className="w-4 h-4" />
+                    {carrier.contact_phone}
+                  </div>
+                )}
+                {carrier.safety_rating && carrier.safety_rating !== 'None' && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Shield className={`w-4 h-4 ${
+                      carrier.safety_rating === 'Satisfactory' ? 'text-green-500' :
+                      carrier.safety_rating === 'Conditional' ? 'text-amber-500' :
+                      'text-red-500'
+                    }`} />
+                    <span className={`${
+                      carrier.safety_rating === 'Satisfactory' ? 'text-green-600' :
+                      carrier.safety_rating === 'Conditional' ? 'text-amber-600' :
+                      'text-red-600'
+                    }`}>
+                      {carrier.safety_rating}
+                    </span>
+                  </div>
+                )}
+                {carrier.city && carrier.state && (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <MapPin className="w-4 h-4" />
+                    {carrier.city}, {carrier.state}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -3074,6 +3086,14 @@ function CarriersPage({ carriers, loads, onRefresh, showToast }) {
           carrier={editingCarrier}
           onClose={() => { setShowForm(false); setEditingCarrier(null); }} 
           onSubmit={saveCarrier} 
+        />
+      )}
+
+      {selectedCarrier && (
+        <CarrierDetailModal
+          carrier={selectedCarrier}
+          loads={loads}
+          onClose={() => setSelectedCarrier(null)}
         />
       )}
     </div>
@@ -3394,6 +3414,591 @@ function CarrierFormModal({ carrier, onClose, onSubmit }) {
             {carrier ? 'Update Carrier' : 'Add Carrier'}
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// Carrier Detail Analytics Modal
+function CarrierDetailModal({ carrier, loads, onClose }) {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [searchLoad, setSearchLoad] = useState('');
+  const [sortField, setSortField] = useState('created_at');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+  // Get all loads for this carrier
+  const carrierLoads = useMemo(() => {
+    return loads.filter(l => l.carrier_name === carrier.name);
+  }, [loads, carrier.name]);
+
+  // Calculate comprehensive metrics
+  const metrics = useMemo(() => {
+    const totalLoads = carrierLoads.length;
+    const totalRevenue = carrierLoads.reduce((sum, l) => sum + (parseFloat(l.rate_paid_to_carrier) || 0), 0);
+    const deliveredLoads = carrierLoads.filter(l => l.status === 'delivered' && l.actual_delivery_date);
+    const onTimeLoads = deliveredLoads.filter(l => 
+      new Date(l.actual_delivery_date) <= new Date(l.scheduled_delivery_date)
+    );
+    const otd = deliveredLoads.length > 0 ? ((onTimeLoads.length / deliveredLoads.length) * 100).toFixed(1) : 0;
+    
+    const avgRate = totalLoads > 0 ? (totalRevenue / totalLoads).toFixed(2) : 0;
+    
+    // Calculate total miles (if available)
+    const totalMiles = carrierLoads.reduce((sum, l) => sum + (parseFloat(l.miles) || 0), 0);
+    const avgRatePerMile = totalMiles > 0 ? (totalRevenue / totalMiles).toFixed(2) : 0;
+
+    // Date range
+    const dates = carrierLoads.map(l => new Date(l.created_at)).filter(d => !isNaN(d));
+    const firstLoad = dates.length > 0 ? new Date(Math.min(...dates)) : null;
+    const lastLoad = dates.length > 0 ? new Date(Math.max(...dates)) : null;
+
+    return {
+      totalLoads,
+      totalRevenue,
+      avgRate,
+      avgRatePerMile,
+      totalMiles,
+      otd,
+      deliveredLoads: deliveredLoads.length,
+      inTransit: carrierLoads.filter(l => l.status === 'in_transit').length,
+      dispatched: carrierLoads.filter(l => l.status === 'dispatched').length,
+      firstLoad,
+      lastLoad
+    };
+  }, [carrierLoads]);
+
+  // Lane Analysis - group by origin → destination
+  const laneAnalysis = useMemo(() => {
+    const lanes = {};
+    carrierLoads.forEach(load => {
+      const laneKey = `${load.origin_city}, ${load.origin_state} → ${load.destination_city}, ${load.destination_state}`;
+      if (!lanes[laneKey]) {
+        lanes[laneKey] = {
+          lane: laneKey,
+          count: 0,
+          totalRevenue: 0,
+          avgRate: 0,
+          loads: []
+        };
+      }
+      lanes[laneKey].count += 1;
+      lanes[laneKey].totalRevenue += parseFloat(load.rate_paid_to_carrier) || 0;
+      lanes[laneKey].loads.push(load);
+    });
+
+    // Calculate averages and sort by frequency
+    return Object.values(lanes)
+      .map(lane => ({
+        ...lane,
+        avgRate: (lane.totalRevenue / lane.count).toFixed(2)
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [carrierLoads]);
+
+  // Monthly load trend
+  const monthlyTrend = useMemo(() => {
+    const months = {};
+    carrierLoads.forEach(load => {
+      const month = new Date(load.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+      if (!months[month]) {
+        months[month] = { month, loads: 0, revenue: 0 };
+      }
+      months[month].loads += 1;
+      months[month].revenue += parseFloat(load.rate_paid_to_carrier) || 0;
+    });
+    return Object.values(months).sort((a, b) => new Date(a.month) - new Date(b.month));
+  }, [carrierLoads]);
+
+  // Filtered and sorted loads
+  const filteredLoads = useMemo(() => {
+    let filtered = [...carrierLoads];
+
+    // Search filter
+    if (searchLoad) {
+      filtered = filtered.filter(l => 
+        l.load_number?.toLowerCase().includes(searchLoad.toLowerCase()) ||
+        l.origin_city?.toLowerCase().includes(searchLoad.toLowerCase()) ||
+        l.destination_city?.toLowerCase().includes(searchLoad.toLowerCase())
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(l => l.status === statusFilter);
+    }
+
+    // Date range filter
+    if (dateRange.start) {
+      filtered = filtered.filter(l => new Date(l.created_at) >= new Date(dateRange.start));
+    }
+    if (dateRange.end) {
+      filtered = filtered.filter(l => new Date(l.created_at) <= new Date(dateRange.end));
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+      
+      if (sortField === 'rate_paid_to_carrier') {
+        aVal = parseFloat(aVal) || 0;
+        bVal = parseFloat(bVal) || 0;
+      } else if (sortField === 'created_at' || sortField === 'scheduled_delivery_date') {
+        aVal = new Date(aVal);
+        bVal = new Date(bVal);
+      }
+
+      if (sortDirection === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+
+    return filtered;
+  }, [carrierLoads, searchLoad, statusFilter, dateRange, sortField, sortDirection]);
+
+  // Export to CSV
+  const exportToCSV = () => {
+    const headers = ['Load #', 'Date', 'Origin', 'Destination', 'Status', 'Rate', 'Miles', 'RPM'];
+    const rows = filteredLoads.map(l => [
+      l.load_number,
+      new Date(l.created_at).toLocaleDateString(),
+      `${l.origin_city}, ${l.origin_state}`,
+      `${l.destination_city}, ${l.destination_state}`,
+      l.status,
+      `$${parseFloat(l.rate_paid_to_carrier || 0).toFixed(2)}`,
+      l.miles || '',
+      l.miles ? `$${(parseFloat(l.rate_paid_to_carrier || 0) / parseFloat(l.miles)).toFixed(2)}` : ''
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${carrier.name.replace(/\s+/g, '_')}_loads_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-[#003366] rounded-lg flex items-center justify-center">
+              <Truck className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{carrier.name}</h2>
+              <p className="text-sm text-gray-500">MC# {carrier.mc_number || 'N/A'}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 px-6">
+          {[
+            { id: 'overview', label: 'Overview', icon: BarChart3 },
+            { id: 'loads', label: `Loads (${metrics.totalLoads})`, icon: Package },
+            { id: 'lanes', label: `Lanes (${laneAnalysis.length})`, icon: MapPin },
+            { id: 'analytics', label: 'Analytics', icon: Activity },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id 
+                  ? 'border-[#003366] text-[#003366]' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Key Metrics Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <Package className="w-5 h-5 text-blue-600" />
+                    <span className="text-xs font-medium text-blue-600">Total</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{metrics.totalLoads}</p>
+                  <p className="text-xs text-gray-600">Loads</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <DollarSign className="w-5 h-5 text-green-600" />
+                    <span className="text-xs font-medium text-green-600">Revenue</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">${metrics.totalRevenue.toLocaleString()}</p>
+                  <p className="text-xs text-gray-600">Total Paid</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <Target className="w-5 h-5 text-purple-600" />
+                    <span className="text-xs font-medium text-purple-600">Average</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">${metrics.avgRate}</p>
+                  <p className="text-xs text-gray-600">Per Load</p>
+                </div>
+
+                <div className={`bg-gradient-to-br ${
+                  metrics.otd >= 90 ? 'from-emerald-50 to-emerald-100 border-emerald-200' :
+                  metrics.otd >= 70 ? 'from-amber-50 to-amber-100 border-amber-200' :
+                  'from-red-50 to-red-100 border-red-200'
+                } rounded-lg p-4 border`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <CheckCircle className={`w-5 h-5 ${
+                      metrics.otd >= 90 ? 'text-emerald-600' :
+                      metrics.otd >= 70 ? 'text-amber-600' :
+                      'text-red-600'
+                    }`} />
+                    <span className={`text-xs font-medium ${
+                      metrics.otd >= 90 ? 'text-emerald-600' :
+                      metrics.otd >= 70 ? 'text-amber-600' :
+                      'text-red-600'
+                    }`}>On-Time</span>
+                  </div>
+                  <p className={`text-2xl font-bold ${
+                    metrics.otd >= 90 ? 'text-emerald-600' :
+                    metrics.otd >= 70 ? 'text-amber-600' :
+                    'text-red-600'
+                  }`}>{metrics.otd}%</p>
+                  <p className="text-xs text-gray-600">Delivery</p>
+                </div>
+              </div>
+
+              {/* Additional Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <p className="text-sm text-gray-500 mb-1">Avg Rate/Mile</p>
+                  <p className="text-xl font-bold text-gray-900">${metrics.avgRatePerMile}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <p className="text-sm text-gray-500 mb-1">Total Miles</p>
+                  <p className="text-xl font-bold text-gray-900">{metrics.totalMiles.toLocaleString()}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <p className="text-sm text-gray-500 mb-1">In Transit</p>
+                  <p className="text-xl font-bold text-gray-900">{metrics.inTransit}</p>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#003366]" />
+                  Relationship Timeline
+                </h4>
+                <div className="flex items-center justify-between text-sm">
+                  <div>
+                    <p className="text-gray-500">First Load</p>
+                    <p className="font-medium text-gray-900">
+                      {metrics.firstLoad ? metrics.firstLoad.toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-300" />
+                  <div>
+                    <p className="text-gray-500">Most Recent</p>
+                    <p className="font-medium text-gray-900">
+                      {metrics.lastLoad ? metrics.lastLoad.toLocaleDateString() : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Days Active</p>
+                    <p className="font-medium text-gray-900">
+                      {metrics.firstLoad && metrics.lastLoad 
+                        ? Math.ceil((metrics.lastLoad - metrics.firstLoad) / (1000 * 60 * 60 * 24))
+                        : 'N/A'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Info */}
+              {(carrier.contact_phone || carrier.contact_email || (carrier.city && carrier.state)) && (
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Contact Information</h4>
+                  <div className="space-y-2">
+                    {carrier.contact_phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-700">{carrier.contact_phone}</span>
+                      </div>
+                    )}
+                    {carrier.city && carrier.state && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-700">{carrier.city}, {carrier.state}</span>
+                      </div>
+                    )}
+                    {carrier.safety_rating && carrier.safety_rating !== 'None' && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Shield className={`w-4 h-4 ${
+                          carrier.safety_rating === 'Satisfactory' ? 'text-green-500' :
+                          carrier.safety_rating === 'Conditional' ? 'text-amber-500' :
+                          'text-red-500'
+                        }`} />
+                        <span className={`${
+                          carrier.safety_rating === 'Satisfactory' ? 'text-green-600' :
+                          carrier.safety_rating === 'Conditional' ? 'text-amber-600' :
+                          'text-red-600'
+                        }`}>
+                          Safety Rating: {carrier.safety_rating}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'loads' && (
+            <div className="space-y-4">
+              {/* Filters */}
+              <div className="flex flex-wrap gap-4 items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div className="flex gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search loads..."
+                      value={searchLoad}
+                      onChange={(e) => setSearchLoad(e.target.value)}
+                      className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm w-48"
+                    />
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="dispatched">Dispatched</option>
+                    <option value="in_transit">In Transit</option>
+                    <option value="delivered">Delivered</option>
+                  </select>
+                </div>
+                <button
+                  onClick={exportToCSV}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] text-sm"
+                >
+                  <Download className="w-4 h-4" />
+                  Export CSV
+                </button>
+              </div>
+
+              {/* Loads Table */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => {
+                              setSortField('load_number');
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            }}>
+                          Load # {sortField === 'load_number' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => {
+                              setSortField('created_at');
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            }}>
+                          Date {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Route
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => {
+                              setSortField('rate_paid_to_carrier');
+                              setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                            }}>
+                          Rate {sortField === 'rate_paid_to_carrier' && (sortDirection === 'asc' ? '↑' : '↓')}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {filteredLoads.map((load) => (
+                        <tr key={load.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            {load.load_number}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            {new Date(load.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            <div className="flex items-center gap-1">
+                              <span>{load.origin_city}, {load.origin_state}</span>
+                              <ArrowRight className="w-3 h-3 text-gray-400" />
+                              <span>{load.destination_city}, {load.destination_state}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              load.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                              load.status === 'in_transit' ? 'bg-blue-100 text-blue-700' :
+                              'bg-amber-100 text-amber-700'
+                            }`}>
+                              {load.status.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                            ${parseFloat(load.rate_paid_to_carrier || 0).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {filteredLoads.length === 0 && (
+                  <div className="text-center py-12">
+                    <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-gray-400">No loads found</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'lanes' && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-700">
+                  <strong>Lane Analysis:</strong> Shows the most frequently traveled routes for this carrier with average rates.
+                </p>
+              </div>
+
+              <div className="grid gap-4">
+                {laneAnalysis.map((lane, idx) => (
+                  <div key={idx} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-10 h-10 bg-[#003366] rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                          #{idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{lane.lane}</p>
+                          <p className="text-xs text-gray-500">{lane.count} {lane.count === 1 ? 'load' : 'loads'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-[#003366]">${parseFloat(lane.avgRate).toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">Avg Rate</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-4 text-sm">
+                      <div className="flex items-center gap-1">
+                        <DollarSign className="w-4 h-4 text-green-600" />
+                        <span className="text-gray-600">Total: <strong>${lane.totalRevenue.toLocaleString()}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Package className="w-4 h-4 text-blue-600" />
+                        <span className="text-gray-600">Frequency: <strong>{((lane.count / metrics.totalLoads) * 100).toFixed(1)}%</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {laneAnalysis.length === 0 && (
+                <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                  <MapPin className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-gray-400">No lane data available</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <div className="space-y-6">
+              {/* Monthly Trend Chart */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-[#003366]" />
+                  Load Volume Over Time
+                </h4>
+                {monthlyTrend.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <AreaChart data={monthlyTrend}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" style={{ fontSize: '12px' }} />
+                      <YAxis style={{ fontSize: '12px' }} />
+                      <Tooltip />
+                      <Area type="monotone" dataKey="loads" stroke="#003366" fill="#003366" fillOpacity={0.6} name="Loads" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-center text-gray-400 py-12">No trend data available</p>
+                )}
+              </div>
+
+              {/* Revenue Trend Chart */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                  Revenue Over Time
+                </h4>
+                {monthlyTrend.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <AreaChart data={monthlyTrend}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" style={{ fontSize: '12px' }} />
+                      <YAxis style={{ fontSize: '12px' }} />
+                      <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
+                      <Area type="monotone" dataKey="revenue" stroke="#10b981" fill="#10b981" fillOpacity={0.6} name="Revenue" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-center text-gray-400 py-12">No revenue data available</p>
+                )}
+              </div>
+
+              {/* Status Distribution */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h4 className="text-sm font-semibold text-gray-900 mb-4">Load Status Distribution</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-amber-50 rounded-lg border border-amber-200">
+                    <p className="text-3xl font-bold text-amber-600">{metrics.dispatched}</p>
+                    <p className="text-sm text-gray-600 mt-1">Dispatched</p>
+                  </div>
+                  <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-3xl font-bold text-blue-600">{metrics.inTransit}</p>
+                    <p className="text-sm text-gray-600 mt-1">In Transit</p>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                    <p className="text-3xl font-bold text-green-600">{metrics.deliveredLoads}</p>
+                    <p className="text-sm text-gray-600 mt-1">Delivered</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
