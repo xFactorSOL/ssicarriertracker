@@ -762,14 +762,19 @@ function LoginPage({ email, setEmail, password, setPassword, isLogin, setIsLogin
             </div>
           </div>
         </div>
-    </div>
-  );
-}
+      </div>
+    );
+  }
 
 // Profile Setup - Seaboard Solutions Branding
 function ProfileSetup({ user, onComplete, isSuperAdmin, showToast }) {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.location.reload();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -839,7 +844,7 @@ function ProfileSetup({ user, onComplete, isSuperAdmin, showToast }) {
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
+            <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
           <input
             type="text"
@@ -849,7 +854,7 @@ function ProfileSetup({ user, onComplete, isSuperAdmin, showToast }) {
               className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-[#003366] focus:border-transparent"
               required
             />
-          </div>
+            </div>
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
             <p className="text-sm text-gray-600">
               <span className="font-medium text-gray-700">Role:</span> {isSuperAdmin ? 'Manager (Admin)' : 'Team Member'}
@@ -866,6 +871,14 @@ function ProfileSetup({ user, onComplete, isSuperAdmin, showToast }) {
             {loading ? 'Setting up...' : 'Complete Setup'}
           </button>
         </form>
+        <div className="mt-4 text-center">
+          <button
+            onClick={handleSignOut}
+            className="text-sm text-gray-500 hover:text-gray-700 underline"
+          >
+            Sign out and return to login
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -907,7 +920,7 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, isManager, 
           if (item.managerOnly && !isManager) return null;
           
           const isActive = activeTab === item.id;
-          return (
+  return (
           <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
