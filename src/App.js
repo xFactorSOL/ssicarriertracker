@@ -2,19 +2,18 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, AreaChart, Area
+  PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import { 
   Truck, Clock, DollarSign, Plus, CheckCircle, Users, Shield, Search,
-  Filter, Download, Upload, FileText, MapPin, Phone, Mail, Calendar,
-  TrendingUp, TrendingDown, AlertTriangle, Bell, Settings, LogOut,
-  ChevronDown, ChevronRight, X, Edit, Trash2, Eye, Copy, Send,
+  Download, Upload, MapPin, Phone, Settings, LogOut,
+  ChevronDown, ChevronRight, X, Edit, Trash2, Eye,
   Building, User, Package, BarChart3, Home, Layers, ArrowUpRight,
-  ArrowDownRight, RefreshCw, Star, StarOff, MoreVertical, Check,
-  MessageSquare, History, Zap, Target, Award, Activity, Hash,
-  ArrowRight, Circle, Play, Pause, RotateCcw, ChevronUp, Percent,
-  CreditCard, Receipt, Banknote, PiggyBank, Wallet, TrendingUp as Trending,
-  FileUp, File, Paperclip, ClipboardCheck, UserCheck
+  ArrowDownRight, RefreshCw, AlertTriangle, Bell,
+  MessageSquare, History, Target, Award, Activity,
+  ArrowRight, Play, RotateCcw,
+  CreditCard, Receipt, Banknote,
+  FileUp, File, ClipboardCheck
 } from 'lucide-react';
 
 // Supabase client - uses environment variables for security
@@ -35,36 +34,21 @@ const sanitizeInput = (input) => {
   return input
     .trim()
     .replace(/<[^>]*>/g, '') // Remove HTML tags
-    .replace(/[<>\"'&]/g, (char) => {
+    .replace(/[<>"'&]/g, (char) => {
       const entities = { '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;', '&': '&amp;' };
       return entities[char];
     });
 };
 
-const validateEmail = (email) => {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(email);
-};
-
 const validatePhone = (phone) => {
   if (!phone) return true; // Optional field
-  const re = /^[\d\s\-\(\)\+\.]+$/;
+  const re = /^[\d\s\(\)\+\.]+$/;
   return re.test(phone) && phone.replace(/\D/g, '').length >= 10;
 };
 
 const validateRequired = (value, fieldName) => {
   if (!value || !value.trim()) {
     return `${fieldName} is required`;
-  }
-  return null;
-};
-
-const validateLength = (value, fieldName, min, max) => {
-  if (value && value.length < min) {
-    return `${fieldName} must be at least ${min} characters`;
-  }
-  if (value && value.length > max) {
-    return `${fieldName} must be less than ${max} characters`;
   }
   return null;
 };
@@ -1153,8 +1137,8 @@ function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [carrierFilter, setCarrierFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortDir, setSortDir] = useState('desc');
+  const [sortBy] = useState('created_at');
+  const [sortDir] = useState('desc');
 
   const filteredLoads = useMemo(() => {
     let result = [...loads];
@@ -1231,7 +1215,7 @@ function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager
     });
     
     return result;
-  }, [loads, search, statusFilter, sortBy, sortDir, isManager, userId]);
+  }, [loads, search, statusFilter, dateFilter, carrierFilter, sortBy, sortDir, isManager, userId]);
 
   const updateStatus = async (loadId, status) => {
     const updateData = { status };
@@ -1677,12 +1661,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
   const [uploading, setUploading] = useState(false);
 
   // Fetch notes and documents for this load
-  useEffect(() => {
-    fetchNotes();
-    fetchDocuments();
-  }, [load.id]);
-
-  const fetchNotes = async () => {
+  const fetchNotes = useCallback(async () => {
     setLoadingNotes(true);
     const { data, error } = await supabase
       .from('load_notes')
@@ -1694,9 +1673,9 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
       setNotes(data);
     }
     setLoadingNotes(false);
-  };
+  }, [load.id]);
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     setLoadingDocs(true);
     try {
       const { data, error } = await supabase
@@ -1714,7 +1693,12 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
       // Silently handle
     }
     setLoadingDocs(false);
-  };
+  }, [load.id, showToast]);
+
+  useEffect(() => {
+    fetchNotes();
+    fetchDocuments();
+  }, [fetchNotes, fetchDocuments]);
 
   const addNote = async () => {
     if (!newNote.trim()) return;
@@ -1752,7 +1736,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
       const fileName = `${load.id}/${docType}_${Date.now()}.${fileExt}`;
 
       // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('load-documents')
         .upload(fileName, file);
 
@@ -1768,7 +1752,7 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
       }
 
       // Save document record
-      const { data: dbData, error: dbError } = await supabase.from('load_documents').insert([{
+      const { error: dbError } = await supabase.from('load_documents').insert([{
         load_id: load.id,
         user_id: user?.id,
         document_type: docType,
@@ -3473,7 +3457,6 @@ function SettingsPage({ profile, showToast }) {
   const [loading, setLoading] = useState(false);
   
   // Password change state
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
