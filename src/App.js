@@ -281,29 +281,24 @@ export default function CarrierTracker() {
 
   useEffect(() => {
     if (user && profile && isActive) {
+      // Stagger API calls to prevent ERR_INSUFFICIENT_RESOURCES
       fetchLoads();
-      fetchCarriers();
-      fetchCustomers();
+      setTimeout(() => fetchCarriers(), 200);
+      setTimeout(() => fetchCustomers(), 400);
       
+      // Disable real-time subscriptions to reduce connections
+      // Uncomment if you need real-time updates:
+      /*
       const channel = supabase
         .channel('all_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'loads' }, fetchLoads)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'carriers' }, fetchCarriers)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, fetchCustomers)
-        .on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
-        }, (payload) => {
-          setNotifications(prev => [payload.new, ...prev].slice(0, 20));
-          showToast(`New Notification: ${payload.new.title}`, 'info');
-        })
         .subscribe();
-
       return () => supabase.removeChannel(channel);
+      */
     }
-  }, [user, profile, isActive, fetchNotifications, showToast]);
+  }, [user, profile, isActive]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1947,9 +1942,15 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
   }, [load?.id, showToast]);
 
   useEffect(() => {
+    // Stagger fetches to prevent browser resource exhaustion
     fetchNotes();
-    fetchDocuments();
-    fetchAuditLogs();
+    const docsTimer = setTimeout(() => fetchDocuments(), 300);
+    const auditTimer = setTimeout(() => fetchAuditLogs(), 600);
+    
+    return () => {
+      clearTimeout(docsTimer);
+      clearTimeout(auditTimer);
+    };
   }, [fetchNotes, fetchDocuments, fetchAuditLogs]);
 
   const addNote = async () => {
