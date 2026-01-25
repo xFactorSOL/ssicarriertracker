@@ -128,7 +128,7 @@ serve(async (req) => {
     console.log('👤 Creating auth user...')
     
     // Create auth user with password
-    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: email.toLowerCase(),
       password: password,
       email_confirm: true,
@@ -137,9 +137,9 @@ serve(async (req) => {
       }
     })
 
-    if (userError) {
-      console.error('❌ Auth user creation failed:', userError)
-      throw userError
+    if (createError) {
+      console.error('❌ Auth user creation failed:', createError)
+      throw createError
     }
 
     console.log('✅ Auth user created:', userData.user.id)
