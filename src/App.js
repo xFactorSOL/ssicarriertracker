@@ -2652,8 +2652,12 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
   const [formData, setFormData] = useState({
     load_number: load?.load_number || '',
     customer_name: load?.customer_name || '',
-    origin: load?.origin || '',
-    destination: load?.destination || '',
+    origin_city: load?.origin_city || '',
+    origin_state: load?.origin_state || '',
+    origin_zip: load?.origin_zip || '',
+    destination_city: load?.destination_city || '',
+    destination_state: load?.destination_state || '',
+    destination_zip: load?.destination_zip || '',
     pickup_date: load?.pickup_date?.slice(0, 16) || '',
     scheduled_delivery_date: load?.scheduled_delivery_date?.slice(0, 16) || '',
     carrier_name: load?.carrier_name || '',
@@ -2661,9 +2665,57 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
     driver_phone: load?.driver_phone || '',
     rate_paid_to_carrier: load?.rate_paid_to_carrier || '',
     rate_billed_to_customer: load?.rate_billed_to_customer || '',
+    miles: load?.miles || '',
     notes: load?.notes || ''
   });
   const [loading, setLoading] = useState(false);
+  const [zipLookupLoading, setZipLookupLoading] = useState(false);
+
+  // Geocode from ZIP code using Nominatim (OpenStreetMap)
+  const lookupZipCode = async (zip, type) => {
+    if (!zip || zip.length < 5) return;
+    
+    setZipLookupLoading(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?postalcode=${zip}&country=US&format=json&addressdetails=1`,
+        {
+          headers: {
+            'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0'
+          }
+        }
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const address = data[0].address;
+        const city = address.city || address.town || address.village || address.county || '';
+        const state = address.state || '';
+        
+        if (type === 'origin') {
+          setFormData(prev => ({
+            ...prev,
+            origin_city: city,
+            origin_state: state
+          }));
+          showToast(`Found: ${city}, ${state}`, 'success');
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            destination_city: city,
+            destination_state: state
+          }));
+          showToast(`Found: ${city}, ${state}`, 'success');
+        }
+      } else {
+        showToast('ZIP code not found', 'error');
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      showToast('Could not lookup ZIP code', 'error');
+    }
+    setZipLookupLoading(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -2672,8 +2724,10 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
     const errors = [];
     if (validateRequired(formData.load_number, 'Load Number')) errors.push(validateRequired(formData.load_number, 'Load Number'));
     if (validateRequired(formData.customer_name, 'Customer')) errors.push(validateRequired(formData.customer_name, 'Customer'));
-    if (validateRequired(formData.origin, 'Origin')) errors.push(validateRequired(formData.origin, 'Origin'));
-    if (validateRequired(formData.destination, 'Destination')) errors.push(validateRequired(formData.destination, 'Destination'));
+    if (validateRequired(formData.origin_city, 'Origin City')) errors.push(validateRequired(formData.origin_city, 'Origin City'));
+    if (validateRequired(formData.origin_state, 'Origin State')) errors.push(validateRequired(formData.origin_state, 'Origin State'));
+    if (validateRequired(formData.destination_city, 'Destination City')) errors.push(validateRequired(formData.destination_city, 'Destination City'));
+    if (validateRequired(formData.destination_state, 'Destination State')) errors.push(validateRequired(formData.destination_state, 'Destination State'));
     if (validateRequired(formData.carrier_name, 'Carrier')) errors.push(validateRequired(formData.carrier_name, 'Carrier'));
     
     // Validate phone if provided
@@ -2762,27 +2816,116 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
                 {customers.map(c => <option key={c.id} value={c.name} />)}
               </datalist>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Origin *</label>
-            <input
-              type="text"
-                required
-              value={formData.origin}
-              onChange={(e) => setFormData({...formData, origin: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
-                placeholder="City, State"
-            />
+            {/* Origin Address */}
+            <div className="col-span-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#003366]" />
+                Origin Address
+              </h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">City *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.origin_city}
+                    onChange={(e) => setFormData({...formData, origin_city: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="Houston"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">State *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength="2"
+                    value={formData.origin_state}
+                    onChange={(e) => setFormData({...formData, origin_state: e.target.value.toUpperCase()})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366] uppercase"
+                    placeholder="TX"
+                  />
+                </div>
+                <div className="col-span-3">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">ZIP Code</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      maxLength="5"
+                      value={formData.origin_zip}
+                      onChange={(e) => setFormData({...formData, origin_zip: e.target.value})}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                      placeholder="77001"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => lookupZipCode(formData.origin_zip, 'origin')}
+                      disabled={!formData.origin_zip || zipLookupLoading}
+                      className="px-3 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] text-xs font-medium disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <Search className="w-3 h-3" />
+                      Lookup
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Enter ZIP and click Lookup to auto-fill city/state</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Destination *</label>
-            <input
-              type="text"
-                required
-              value={formData.destination}
-              onChange={(e) => setFormData({...formData, destination: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
-                placeholder="City, State"
-            />
+
+            {/* Destination Address */}
+            <div className="col-span-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-[#003366]" />
+                Destination Address
+              </h4>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">City *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.destination_city}
+                    onChange={(e) => setFormData({...formData, destination_city: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="Miami"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">State *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength="2"
+                    value={formData.destination_state}
+                    onChange={(e) => setFormData({...formData, destination_state: e.target.value.toUpperCase()})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366] uppercase"
+                    placeholder="FL"
+                  />
+                </div>
+                <div className="col-span-3">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">ZIP Code</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      maxLength="5"
+                      value={formData.destination_zip}
+                      onChange={(e) => setFormData({...formData, destination_zip: e.target.value})}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                      placeholder="33101"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => lookupZipCode(formData.destination_zip, 'destination')}
+                      disabled={!formData.destination_zip || zipLookupLoading}
+                      className="px-3 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] text-xs font-medium disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <Search className="w-3 h-3" />
+                      Lookup
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Enter ZIP and click Lookup to auto-fill city/state</p>
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Date</label>
@@ -2835,6 +2978,16 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
               onChange={(e) => setFormData({...formData, driver_phone: e.target.value})}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
                 placeholder="555-123-4567"
+            />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Miles</label>
+            <input
+              type="number"
+              value={formData.miles}
+              onChange={(e) => setFormData({...formData, miles: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="0"
             />
             </div>
             <div>
