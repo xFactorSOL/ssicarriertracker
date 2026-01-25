@@ -185,6 +185,7 @@ export default function CarrierTracker() {
 
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;
   const isManager = profile?.role === 'manager' || isSuperAdmin;
+  const isActive = profile?.status === 'active';
 
   const showToast = useCallback((message, type = 'info') => {
     setToast({ message, type });
@@ -213,7 +214,7 @@ export default function CarrierTracker() {
   }, []);
 
   useEffect(() => {
-    if (user && profile) {
+    if (user && profile && isActive) {
       fetchLoads();
       fetchCarriers();
       fetchCustomers();
@@ -227,7 +228,7 @@ export default function CarrierTracker() {
 
       return () => supabase.removeChannel(channel);
     }
-  }, [user, profile]);
+  }, [user, profile, isActive]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -398,6 +399,36 @@ export default function CarrierTracker() {
         <ProfileSetup user={user} onComplete={fetchProfile} isSuperAdmin={isSuperAdmin} showToast={showToast} />
         {toast && <Toast {...toast} onClose={() => setToast(null)} />}
       </>
+    );
+  }
+
+  if (!isActive && !isSuperAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 w-full max-w-md text-center">
+          <div className="flex items-center justify-center mb-6">
+            <div className="bg-amber-100 p-4 rounded-full">
+              <Clock className="w-8 h-8 text-amber-600" />
+          </div>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Pending Review</h2>
+          <p className="text-gray-600 mb-6">
+            Thank you for requesting access to Seaboard Solutions. Your account is currently pending review by an administrator.
+          </p>
+          <div className="bg-blue-50 rounded-lg p-4 mb-6">
+            <p className="text-sm text-blue-700">
+              We will notify you via email once your access has been approved.
+            </p>
+          </div>
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -3366,22 +3397,48 @@ function AnalyticsPage({ loads, carriers, customers }) {
 }
 
 // Users Page (Super Admin Only)
-function UsersPage({ showToast }) {
+function UsersPage({ isSuperAdmin, showToast }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
-    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-    if (data) setUsers(data);
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setUsers(data);
+    }
     setLoading(false);
   };
 
+  const updateUserStatus = async (userId, status) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ status })
+      .eq('id', userId);
+    
+    if (error) {
+      showToast('Failed to update user', 'error');
+    } else {
+      showToast(`User ${status}`, 'success');
+      fetchUsers();
+    }
+  };
+
   const updateRole = async (userId, role) => {
-    const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role })
+      .eq('id', userId);
+    
     if (error) {
       showToast(error.message, 'error');
     } else {
@@ -3390,63 +3447,270 @@ function UsersPage({ showToast }) {
     }
   };
 
-  if (loading) return <div className="text-center py-12">Loading...</div>;
+  const deleteUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to suspend this user? They will lose all access immediately.')) return;
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ status: 'suspended' })
+      .eq('id', userId);
+    
+    if (error) {
+      showToast('Failed to suspend user', 'error');
+    } else {
+      showToast('User suspended', 'success');
+      fetchUsers();
+    }
+  };
+
+  const hardDeleteUser = async (userId) => {
+    if (!window.confirm('CRITICAL: Are you sure you want to PERMANENTLY delete this user? This cannot be undone.')) return;
+    
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+    
+    if (error) {
+      showToast('Failed to delete user', 'error');
+    } else {
+      showToast('User permanently deleted', 'success');
+      fetchUsers();
+    }
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-      <div className="p-6 border-b border-gray-100">
-        <h3 className="text-lg font-semibold">User Management</h3>
-        <p className="text-sm text-gray-500">Manage user roles and permissions</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Team Management</h2>
+          <p className="text-sm text-gray-500">Manage user access and permissions</p>
+        </div>
+        <button
+          onClick={() => setShowInviteModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Create User
+        </button>
       </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">User</th>
-            <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">Email</th>
-            <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">Role</th>
-            <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+              <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
+              <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="text-left py-4 px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-        <tbody className="divide-y divide-gray-50">
-          {users.map((u) => (
-            <tr key={u.id} className="hover:bg-gray-50">
-              <td className="py-4 px-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#003366] rounded-full flex items-center justify-center text-white font-bold">
-                    {u.full_name?.charAt(0) || 'U'}
+          <tbody className="divide-y divide-gray-100">
+            {users.map((u) => (
+              <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                <td className="py-4 px-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-[#003366] font-bold">
+                      {u.full_name?.charAt(0) || u.email?.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{u.full_name || 'New User'}</p>
+                      <p className="text-xs text-gray-500">{u.email}</p>
+                    </div>
                   </div>
-                  <span className="font-medium">{u.full_name}</span>
-                </div>
                   </td>
-              <td className="py-4 px-6 text-gray-600">{u.email}</td>
-              <td className="py-4 px-6">
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                  u.role === 'manager' ? 'bg-blue-50 text-[#003366]' : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {u.role}
-                  {u.email === SUPER_ADMIN_EMAIL && ' (Super Admin)'}
+                <td className="py-4 px-6">
+                  {u.email !== SUPER_ADMIN_EMAIL ? (
+                    <select
+                      value={u.role}
+                      onChange={(e) => updateRole(u.id, e.target.value)}
+                      className="text-sm border border-gray-200 rounded-lg px-2 py-1"
+                    >
+                      <option value="user">User</option>
+                      <option value="manager">Manager</option>
+                    </select>
+                  ) : (
+                    <span className="px-2 py-1 text-xs font-medium rounded-md bg-amber-100 text-amber-700">
+                      Super Admin
+                    </span>
+                  )}
+                </td>
+                <td className="py-4 px-6">
+                  <span className={`px-2 py-1 text-xs font-medium rounded-md ${
+                    u.status === 'active' ? 'bg-green-100 text-green-700' : 
+                    u.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                  }`}>
+                    {u.status}
                     </span>
                   </td>
-              <td className="py-4 px-6">
-                {u.email !== SUPER_ADMIN_EMAIL ? (
-                    <select
-                    value={u.role}
-                    onChange={(e) => updateRole(u.id, e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-1.5"
-                  >
-                    <option value="user">User</option>
-                    <option value="manager">Manager</option>
-                    </select>
-                ) : (
-                  <span className="text-xs text-gray-400 flex items-center gap-1">
-                    <Shield className="w-4 h-4" /> Protected
-                  </span>
-                )}
+                <td className="py-4 px-6">
+                  <div className="flex items-center gap-2">
+                    {u.status === 'pending' && (
+                      <button
+                        onClick={() => updateUserStatus(u.id, 'active')}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Approve"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                      </button>
+                    )}
+                    {u.status === 'active' && u.email !== SUPER_ADMIN_EMAIL && (
+                      <button
+                        onClick={() => updateUserStatus(u.id, 'suspended')}
+                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Suspend"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    {u.status === 'suspended' && (
+                      <button
+                        onClick={() => updateUserStatus(u.id, 'active')}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Activate"
+                      >
+                        <Play className="w-4 h-4" />
+                      </button>
+                    )}
+                    {u.email !== SUPER_ADMIN_EMAIL && (
+                      <button
+                        onClick={() => deleteUser(u.id)}
+                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Suspend"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    {u.email !== SUPER_ADMIN_EMAIL && u.status === 'suspended' && (
+                      <button
+                        onClick={() => hardDeleteUser(u.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Permanent Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                   </td>
                 </tr>
-          ))}
+            ))}
           </tbody>
         </table>
+        {loading && <div className="p-8 text-center text-gray-500">Loading users...</div>}
+      </div>
+
+      {showInviteModal && (
+        <InviteUserModal 
+          onClose={() => setShowInviteModal(false)} 
+          onSuccess={() => { fetchUsers(); setShowInviteModal(false); }}
+          showToast={showToast}
+        />
+      )}
+    </div>
+  );
+}
+
+function InviteUserModal({ onClose, onSuccess, showToast }) {
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState('user');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      // Direct creation logic: 
+      // 1. We create the profile record with status 'pending'
+      // 2. We instruct the user to sign up with this email
+      // This is the most secure way without a backend service role
+      
+      const { data: existingUser } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (existingUser) {
+        showToast('A user with this email already exists', 'error');
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .insert([{
+          email: email.toLowerCase(),
+          full_name: fullName,
+          role: role,
+          status: 'pending' // They still need to sign up to create the auth user
+        }]);
+
+      if (error) throw error;
+
+      showToast(`User record created. Please ask ${fullName} to sign up with ${email}.`, 'success');
+      onSuccess();
+    } catch (error) {
+      showToast(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="text-xl font-bold text-gray-900">Create New User</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <p className="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg border border-blue-100">
+            Note: For security, new users should sign up with their email. You can then approve them in the Team list.
+          </p>
+        <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+            />
+        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <input
+              type="text"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+            />
+        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+            >
+              <option value="user">User</option>
+              <option value="manager">Manager</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#003366] text-white py-3 rounded-lg font-semibold hover:bg-[#002244] disabled:opacity-50"
+          >
+            Send Instructions
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
