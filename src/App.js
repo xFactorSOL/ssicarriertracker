@@ -2789,11 +2789,10 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
     setZipLookupLoading(true);
     
     try {
-      // Get coordinates for origin using city, state
-      const originQuery = `${formData.origin_city}, ${formData.origin_state}, USA`;
-      console.log('Looking up origin:', originQuery);
+      // Get coordinates for origin using city, state - use structured search
+      console.log('Looking up origin:', formData.origin_city, formData.origin_state);
       const originResponse = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(originQuery)}&country=US&format=json&limit=1`,
+        `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(formData.origin_city)}&state=${encodeURIComponent(formData.origin_state)}&country=USA&format=json&limit=1`,
         { headers: { 'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0' } }
       );
       const originData = await originResponse.json();
@@ -2808,11 +2807,10 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
       // Small delay to respect Nominatim rate limits (1 req/sec)
       await new Promise(resolve => setTimeout(resolve, 1100));
       
-      // Get coordinates for destination using city, state
-      const destQuery = `${formData.destination_city}, ${formData.destination_state}, USA`;
-      console.log('Looking up destination:', destQuery);
+      // Get coordinates for destination using city, state - use structured search
+      console.log('Looking up destination:', formData.destination_city, formData.destination_state);
       const destResponse = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(destQuery)}&country=US&format=json&limit=1`,
+        `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(formData.destination_city)}&state=${encodeURIComponent(formData.destination_state)}&country=USA&format=json&limit=1`,
         { headers: { 'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0' } }
       );
       const destData = await destResponse.json();
