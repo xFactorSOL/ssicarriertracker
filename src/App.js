@@ -13,7 +13,8 @@ import {
   MessageSquare, History, Target, Award, Activity,
   ArrowRight,
   CreditCard, Receipt,
-  FileUp, File, ClipboardCheck, Calendar, FileText
+  FileUp, File, ClipboardCheck, Calendar, FileText,
+  Clock, Play
 } from 'lucide-react';
 
 // Supabase client - uses environment variables for security
