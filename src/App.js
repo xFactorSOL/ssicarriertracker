@@ -2678,7 +2678,7 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
     setZipLookupLoading(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?postalcode=${zip}&country=US&format=json&addressdetails=1`,
+        `https://nominatim.openstreetmap.org/search?postalcode=${zip}&country=US&format=json&addressdetails=1&limit=1`,
         {
           headers: {
             'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0'
@@ -2689,23 +2689,43 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
       
       if (data && data.length > 0) {
         const address = data[0].address;
-        const city = address.city || address.town || address.village || address.county || '';
-        const state = address.state || '';
+        
+        // Try to get the most specific locality (city/town/village), NOT county
+        // Priority: city > town > village > municipality > suburb
+        const city = address.city || 
+                    address.town || 
+                    address.village || 
+                    address.municipality || 
+                    address.suburb ||
+                    address.hamlet ||
+                    address.neighbourhood ||
+                    '';
+        
+        // Get state abbreviation
+        const stateAbbr = address['ISO3166-2-lvl4'] ? 
+                         address['ISO3166-2-lvl4'].split('-')[1] : 
+                         address.state || '';
+        
+        if (!city) {
+          showToast('Could not find city for this ZIP code', 'error');
+          setZipLookupLoading(false);
+          return;
+        }
         
         if (type === 'origin') {
           setFormData(prev => ({
             ...prev,
             origin_city: city,
-            origin_state: state
+            origin_state: stateAbbr
           }));
-          showToast(`Found: ${city}, ${state}`, 'success');
+          showToast(`Found: ${city}, ${stateAbbr}`, 'success');
         } else {
           setFormData(prev => ({
             ...prev,
             destination_city: city,
-            destination_state: state
+            destination_state: stateAbbr
           }));
-          showToast(`Found: ${city}, ${state}`, 'success');
+          showToast(`Found: ${city}, ${stateAbbr}`, 'success');
         }
       } else {
         showToast('ZIP code not found', 'error');
