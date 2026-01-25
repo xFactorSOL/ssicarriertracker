@@ -20,7 +20,7 @@ import {
 // Supabase client - Uses environment variables with fallbacks for local development
 // In production (Vercel), these should be set in environment variables
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://qwoabopuoihbawlwmgbf.supabase.co';
-const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2Fib3B1b2loYmF3bHdtZ2JmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY4NzE3MjgsImV4cCI6MjA1MjQ0NzcyOH0.bSCWBQpXVXqesFMwKX30qtR_-89tKlJN44_1ZRp-I2k';
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3b2Fib3B1b2loYmF3bHdtZ2JmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3OTg3OTYsImV4cCI6MjA4NDM3NDc5Nn0.5Xwxjoykox37Aha9-jmol1UN8vVc3epeX-0jwElTUzE';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
