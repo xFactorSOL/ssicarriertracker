@@ -2797,34 +2797,61 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
         return;
       }
       
-      const originLon = originData[0].lon;
-      const originLat = originData[0].lat;
-      const destLon = destData[0].lon;
-      const destLat = destData[0].lat;
+      const originLon = parseFloat(originData[0].lon);
+      const originLat = parseFloat(originData[0].lat);
+      const destLon = parseFloat(destData[0].lon);
+      const destLat = parseFloat(destData[0].lat);
       
-      // Calculate route using OSRM (free routing)
-      const routeResponse = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${originLon},${originLat};${destLon},${destLat}?overview=false`
-      );
-      const routeData = await routeResponse.json();
+      // Haversine formula to calculate straight-line distance
+      const haversineDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 3959; // Earth's radius in miles
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      };
       
-      if (routeData.code === 'Ok' && routeData.routes && routeData.routes.length > 0) {
-        // Distance is in meters, convert to miles
-        const distanceMeters = routeData.routes[0].distance;
-        const distanceMiles = Math.round(distanceMeters / 1609.34);
+      let distanceMiles;
+      let isEstimate = false;
+      
+      // Try OSRM for actual driving distance
+      try {
+        const routeResponse = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${originLon},${originLat};${destLon},${destLat}?overview=false`
+        );
+        const routeData = await routeResponse.json();
         
-        setFormData(prev => ({
-          ...prev,
-          miles: distanceMiles.toString()
-        }));
-        
-        showToast(`Distance: ${distanceMiles.toLocaleString()} miles`, 'success');
-      } else {
-        showToast('Could not calculate route distance', 'error');
+        if (routeData.code === 'Ok' && routeData.routes && routeData.routes.length > 0) {
+          const distanceMeters = routeData.routes[0].distance;
+          distanceMiles = Math.round(distanceMeters / 1609.34);
+        } else {
+          throw new Error('OSRM failed');
+        }
+      } catch (routeError) {
+        // Fallback: use straight-line distance * 1.3 (typical road factor)
+        console.log('OSRM failed, using Haversine estimate:', routeError);
+        const straightLine = haversineDistance(originLat, originLon, destLat, destLon);
+        distanceMiles = Math.round(straightLine * 1.3);
+        isEstimate = true;
       }
+      
+      setFormData(prev => ({
+        ...prev,
+        miles: distanceMiles.toString()
+      }));
+      
+      showToast(
+        isEstimate 
+          ? `Estimated: ~${distanceMiles.toLocaleString()} miles (road distance may vary)` 
+          : `Distance: ${distanceMiles.toLocaleString()} miles`,
+        'success'
+      );
     } catch (error) {
-      console.error('Route calculation error:', error);
-      showToast('Error calculating distance', 'error');
+      console.error('Distance calculation error:', error);
+      showToast('Error: Enter both origin and destination first', 'error');
     }
     
     setZipLookupLoading(false);
