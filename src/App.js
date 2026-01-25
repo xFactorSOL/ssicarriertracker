@@ -3983,44 +3983,26 @@ function InviteUserModal({ onClose, onSuccess, showToast }) {
     setLoading(true);
     
     try {
-      // Direct creation logic: 
-      // 1. We create the profile record with status 'pending'
-      // 2. We instruct the user to sign up with this email
-      // This is the most secure way without a backend service role
-      
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email.toLowerCase())
-        .single();
-
-      if (existingUser) {
-        showToast('A user with this email already exists', 'error');
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert([{
-          id: crypto.randomUUID(), // Generate a UUID for the profile
+      // Call Edge Function to create user with admin API
+      const { data, error } = await supabase.functions.invoke('invite-user', {
+        body: {
           email: sanitizeInput(email.toLowerCase()),
-          full_name: sanitizeInput(fullName),
-          role: role,
-          status: 'pending' // They still need to sign up to create the auth user
-        }])
-        .select();
+          fullName: sanitizeInput(fullName),
+          role: role
+        }
+      });
 
-      if (error) {
-        console.error('Profile insert error:', error);
-        throw error;
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
       }
-      
-      console.log('Profile created:', data);
-      showToast(`User record created. Please ask ${fullName} to sign up with ${email}.`, 'success');
+
+      showToast(data.message || `User created! ${fullName} will receive an email to set their password.`, 'success');
       onSuccess();
     } catch (error) {
-      showToast(error.message, 'error');
+      console.error('User creation error:', error);
+      showToast(error.message || 'Failed to create user', 'error');
     } finally {
       setLoading(false);
     }
