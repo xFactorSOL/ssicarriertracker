@@ -1858,56 +1858,92 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
 
   // Fetch notes, documents, and audit logs for this load
   const fetchAuditLogs = useCallback(async () => {
+    if (!load?.id) {
+      setAuditLogs([]);
+      setLoadingAudit(false);
+      return;
+    }
+    
     setLoadingAudit(true);
-    const { data, error } = await supabase
-      .from('load_audit_logs')
-      .select('*, profiles(full_name, email)')
-      .eq('load_id', load.id)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Audit log fetch error:', error);
-    } else if (data) {
-      setAuditLogs(data);
-    }
-    setLoadingAudit(false);
-  }, [load.id]);
-
-  const fetchNotes = useCallback(async () => {
-    setLoadingNotes(true);
-    const { data, error } = await supabase
-      .from('load_notes')
-      .select('*, profiles(full_name)')
-      .eq('load_id', load.id)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Notes fetch error:', error);
-    } else if (data) {
-      setNotes(data);
-    }
-    setLoadingNotes(false);
-  }, [load.id]);
-
-  const fetchDocuments = useCallback(async () => {
-    setLoadingDocs(true);
     try {
       const { data, error } = await supabase
-        .from('load_documents')
-        .select('*')
+        .from('load_audit_logs')
+        .select('id, load_id, user_id, action, field_name, old_value, new_value, created_at, profiles(full_name, email)')
         .eq('load_id', load.id)
         .order('created_at', { ascending: false });
       
       if (error) {
-        showToast(`Error loading documents: ${error.message}`, 'error');
+        console.error('Audit log fetch error:', error);
+        setAuditLogs([]);
+      } else {
+        setAuditLogs(data || []);
+      }
+    } catch (err) {
+      console.error('Audit log exception:', err);
+      setAuditLogs([]);
+    }
+    setLoadingAudit(false);
+  }, [load?.id]);
+
+  const fetchNotes = useCallback(async () => {
+    if (!load?.id) {
+      setNotes([]);
+      setLoadingNotes(false);
+      return;
+    }
+    
+    setLoadingNotes(true);
+    try {
+      const { data, error } = await supabase
+        .from('load_notes')
+        .select('id, load_id, user_id, content, created_at, profiles(full_name)')
+        .eq('load_id', load.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Notes fetch error:', error);
+        setNotes([]);
+      } else {
+        setNotes(data || []);
+      }
+    } catch (err) {
+      console.error('Notes fetch exception:', err);
+      setNotes([]);
+    }
+    setLoadingNotes(false);
+  }, [load?.id]);
+
+  const fetchDocuments = useCallback(async () => {
+    if (!load?.id) {
+      setDocuments([]);
+      setLoadingDocs(false);
+      return;
+    }
+    
+    setLoadingDocs(true);
+    try {
+      const { data, error } = await supabase
+        .from('load_documents')
+        .select('id, load_id, user_id, document_type, file_name, file_path, file_size, mime_type, created_at')
+        .eq('load_id', load.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Document fetch error:', error);
+        // Don't show toast for empty results
+        if (error.code !== 'PGRST116') {
+          showToast(`Error loading documents: ${error.message}`, 'error');
+        }
+        setDocuments([]);
       } else {
         setDocuments(data || []);
       }
     } catch (err) {
-      // Silently handle
+      console.error('Document fetch exception:', err);
+      setDocuments([]);
     }
     setLoadingDocs(false);
-  }, [load.id, showToast]);
+  }, [load?.id, showToast]);
 
   useEffect(() => {
     fetchNotes();
