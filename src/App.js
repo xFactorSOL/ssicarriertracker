@@ -1752,18 +1752,30 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh }) {
   const addNote = async () => {
     if (!newNote.trim()) return;
     
-    const { error } = await supabase.from('load_notes').insert([{
-      load_id: load.id,
-      content: sanitizeInput(newNote),
-      user_id: (await supabase.auth.getUser()).data.user?.id
-    }]);
+    try {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) {
+        showToast('You must be logged in to add notes', 'error');
+        return;
+      }
 
-    if (error) {
-      showToast('Failed to add note', 'error');
-    } else {
-      setNewNote('');
-      fetchNotes();
-      showToast('Note added', 'success');
+      const { error } = await supabase.from('load_notes').insert([{
+        load_id: load.id,
+        content: sanitizeInput(newNote),
+        user_id: user.id
+      }]);
+
+      if (error) {
+        console.error('Add note error:', error);
+        showToast(`Failed to add note: ${error.message}`, 'error');
+      } else {
+        setNewNote('');
+        showToast('Note added', 'success');
+        // Small delay to ensure DB consistency before re-fetch
+        setTimeout(() => fetchNotes(), 500);
+      }
+    } catch (err) {
+      showToast('An unexpected error occurred', 'error');
     }
   };
 
