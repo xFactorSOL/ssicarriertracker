@@ -423,7 +423,13 @@ export default function CarrierTracker() {
               <Layers className="w-10 h-10 text-white animate-pulse" />
             </div>
           </div>
-          <img src="/seaboard-logo.png" alt="Seaboard Solutions" className="mt-6 h-12 object-contain" />
+          <div className="mt-6">
+            <h1 className="text-2xl font-black tracking-tight">
+              <span className="bg-gradient-to-r from-[#003366] to-[#0066cc] bg-clip-text text-transparent">TMS</span>
+              <span className="text-gray-700"> Portal</span>
+              <span className="text-xs font-medium text-gray-400 ml-2">V1.0</span>
+            </h1>
+          </div>
           <p className="mt-2 text-gray-500 font-medium text-sm">Loading your dashboard...</p>
         </div>
       </div>
@@ -466,7 +472,7 @@ export default function CarrierTracker() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Account Pending Review</h2>
           <p className="text-gray-600 mb-6">
-            Thank you for requesting access to Seaboard Solutions. Your account is currently pending review by an administrator.
+            Thank you for requesting access to TMS Portal. Your account is currently pending review by an administrator.
           </p>
           <div className="bg-blue-50 rounded-lg p-4 mb-6">
             <p className="text-sm text-blue-700">
@@ -624,7 +630,7 @@ export default function CarrierTracker() {
   );
 }
 
-// Login Page - Seaboard Solutions Corporate
+// Login Page - TMS Portal
 function LoginPage({ email, setEmail, password, setPassword, handleAuth, loading }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex">
@@ -641,16 +647,19 @@ function LoginPage({ email, setEmail, password, setPassword, handleAuth, loading
               <Layers className="w-8 h-8 text-white" />
             </div>
             <div>
-              <img src="/seaboard-logo.png" alt="Seaboard Solutions" className="h-10 brightness-0 invert" />
-              <p className="text-blue-200/60 text-xs tracking-widest uppercase mt-1">Supply Chain Intelligence</p>
+              <h1 className="text-3xl font-black tracking-tight text-white">
+                TMS <span className="font-light">Portal</span>
+                <span className="text-sm font-medium text-blue-300/60 ml-2">V1.0</span>
+              </h1>
+              <p className="text-blue-200/60 text-xs tracking-widest uppercase mt-1">Transportation Management</p>
             </div>
           </div>
           <h2 className="text-4xl font-light text-white leading-tight mb-6">
-            Bringing Solutions<br />
-            <span className="font-semibold">To Your Supply Chain</span>
+            Streamline Your<br />
+            <span className="font-semibold">Freight Operations</span>
           </h2>
           <p className="text-blue-100/70 text-lg max-w-md">
-            Your trusted partner for logistics, freight forwarding, and supply chain management.
+            Your all-in-one platform for loads, carriers, and logistics management.
           </p>
           <div className="mt-12 flex gap-8">
             <div>
@@ -678,7 +687,10 @@ function LoginPage({ email, setEmail, password, setPassword, handleAuth, loading
               <Layers className="w-6 h-6 text-white" />
             </div>
             <div>
-              <img src="/seaboard-logo.png" alt="Seaboard Solutions" className="h-8" />
+              <h1 className="text-xl font-black tracking-tight text-[#003366]">
+                TMS <span className="font-light">Portal</span>
+                <span className="text-xs font-medium text-gray-400 ml-1">V1.0</span>
+              </h1>
             </div>
           </div>
           
@@ -729,7 +741,7 @@ function LoginPage({ email, setEmail, password, setPassword, handleAuth, loading
           
           <div className="mt-8 pt-6 border-t border-gray-200 text-center">
             <p className="text-xs text-gray-400">
-              © 2024 Seaboard Solutions, Inc. All rights reserved.
+              © 2024 TMS Portal V1.0 — All rights reserved.
             </p>
             </div>
           </div>
@@ -738,7 +750,7 @@ function LoginPage({ email, setEmail, password, setPassword, handleAuth, loading
     );
   }
 
-// Profile Setup - Seaboard Solutions Branding
+// Profile Setup - TMS Portal
 function ProfileSetup({ user, onComplete, isSuperAdmin, showToast }) {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -808,7 +820,7 @@ function ProfileSetup({ user, onComplete, isSuperAdmin, showToast }) {
           </div>
         </div>
         <h2 className="text-xl font-semibold mb-2 text-center text-gray-900">Complete Your Profile</h2>
-        <p className="text-center text-gray-500 text-sm mb-6">Welcome to Seaboard Solutions</p>
+        <p className="text-center text-gray-500 text-sm mb-6">Welcome to TMS Portal</p>
         {isSuperAdmin && (
           <div className="flex items-center justify-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-2 px-4 mb-6">
             <Shield className="w-4 h-4" />
@@ -856,7 +868,7 @@ function ProfileSetup({ user, onComplete, isSuperAdmin, showToast }) {
   );
 }
 
-// Sidebar Navigation - Seaboard Solutions Corporate
+// Sidebar Navigation - TMS Portal
 function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, isManager, isSuperAdmin, profile, onSignOut }) {
   const menuItems = [
     { id: 'dashboard', icon: Home, label: 'Dashboard' },
@@ -877,7 +889,11 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, isManager, 
             <Layers className="w-5 h-5 text-white" />
           </div>
         ) : (
-          <img src="/seaboard-logo.png" alt="Seaboard Solutions" className="h-10 object-contain" />
+          <h1 className="text-xl font-black tracking-tight">
+            <span className="bg-gradient-to-r from-[#003366] to-[#0066cc] bg-clip-text text-transparent">TMS</span>
+            <span className="text-gray-700 font-light"> Portal</span>
+            <span className="text-xs font-medium text-gray-400 ml-1">V1.0</span>
+          </h1>
         )}
       </div>
 
@@ -2701,7 +2717,7 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
         `https://nominatim.openstreetmap.org/search?postalcode=${zip}&country=US&format=json&addressdetails=1&limit=1`,
         {
           headers: {
-            'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0'
+            'User-Agent': 'TMSPortal/1.0'
           }
         }
       );
@@ -2782,7 +2798,7 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
       // Get coordinates for origin using city, state
       const originResponse = await fetch(
         `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(formData.origin_city)}&state=${encodeURIComponent(formData.origin_state)}&country=USA&format=json&limit=1`,
-        { headers: { 'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0' } }
+        { headers: { 'User-Agent': 'TMSPortal/1.0' } }
       );
       const originData = await originResponse.json();
       
@@ -2795,7 +2811,7 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
       // Get coordinates for destination using city, state
       const destResponse = await fetch(
         `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(formData.destination_city)}&state=${encodeURIComponent(formData.destination_state)}&country=USA&format=json&limit=1`,
-        { headers: { 'User-Agent': 'SeaboardSolutions-CarrierTracker/1.0' } }
+        { headers: { 'User-Agent': 'TMSPortal/1.0' } }
       );
       const destData = await destResponse.json();
       
