@@ -604,6 +604,8 @@ export default function CarrierTracker() {
               loads={loads} 
               carriers={carriers}
               customers={customers}
+              facilities={facilities}
+              fetchFacilities={fetchFacilities}
               onRefresh={fetchLoads} 
               showToast={showToast}
               isManager={isManager}
@@ -1321,7 +1323,7 @@ function Dashboard({ loads, carriers, customers, isManager, setActiveTab }) {
 }
 
 // Loads Page
-function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager, currentUser }) {
+function LoadsPage({ loads, carriers, customers, facilities, fetchFacilities, onRefresh, showToast, isManager, currentUser }) {
   const [showForm, setShowForm] = useState(false);
   const [editingLoad, setEditingLoad] = useState(null);
   const [viewingLoad, setViewingLoad] = useState(null);
