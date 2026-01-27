@@ -195,6 +195,7 @@ export default function CarrierTracker() {
   const [loads, setLoads] = useState([]);
   const [carriers, setCarriers] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [facilities, setFacilities] = useState([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -284,11 +285,13 @@ export default function CarrierTracker() {
       const t1 = setTimeout(() => fetchLoads(), 100);
       const t2 = setTimeout(() => fetchCarriers(), 1000);
       const t3 = setTimeout(() => fetchCustomers(), 2000);
+      const t4 = setTimeout(() => fetchFacilities(), 3000);
 
       return () => {
         clearTimeout(t1);
         clearTimeout(t2);
         clearTimeout(t3);
+        clearTimeout(t4);
       };
     }
   }, [user, profile, isActive]);
@@ -393,6 +396,14 @@ export default function CarrierTracker() {
       .select('*')
       .order('name');
     if (data) setCustomers(data);
+  };
+
+  const fetchFacilities = async () => {
+    const { data } = await supabase
+      .from('facilities')
+      .select('*')
+      .order('facility_name');
+    if (data) setFacilities(data);
   };
 
   const handleAuth = async (e) => {
@@ -1720,8 +1731,9 @@ function LoadsPage({ loads, carriers, customers, onRefresh, showToast, isManager
           load={editingLoad}
           carriers={carriers}
           customers={customers}
+          facilities={facilities}
           onClose={() => { setShowForm(false); setEditingLoad(null); }}
-          onSuccess={() => { onRefresh(); setShowForm(false); setEditingLoad(null); }}
+          onSuccess={() => { onRefresh(); fetchFacilities(); setShowForm(false); setEditingLoad(null); }}
           showToast={showToast}
         />
       )}
@@ -2326,6 +2338,80 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
                   </div>
                 </div>
 
+                {/* Shipper Info */}
+                {load.shipper_name && (
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Package className="w-4 h-4 text-[#003366]" />
+                      Shipper (Pickup Location)
+                    </h4>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-gray-500">Facility Name</p>
+                        <p className="font-medium text-gray-900">{load.shipper_name}</p>
+                      </div>
+                      {load.shipper_contact_name && (
+                        <div>
+                          <p className="text-xs text-gray-500">Contact</p>
+                          <p className="text-sm text-gray-700">{load.shipper_contact_name}</p>
+                          {load.shipper_contact_phone && (
+                            <p className="text-sm text-gray-600">{load.shipper_contact_phone}</p>
+                          )}
+                        </div>
+                      )}
+                      {load.shipper_appointment_time && (
+                        <div>
+                          <p className="text-xs text-gray-500">Appointment Time</p>
+                          <p className="text-sm text-gray-700">{load.shipper_appointment_time}</p>
+                        </div>
+                      )}
+                      {load.shipper_instructions && (
+                        <div>
+                          <p className="text-xs text-gray-500">Special Instructions</p>
+                          <p className="text-sm text-gray-700 bg-white p-2 rounded">{load.shipper_instructions}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Receiver Info */}
+                {load.receiver_name && (
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Building className="w-4 h-4 text-[#003366]" />
+                      Receiver (Delivery Location)
+                    </h4>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-gray-500">Facility Name</p>
+                        <p className="font-medium text-gray-900">{load.receiver_name}</p>
+                      </div>
+                      {load.receiver_contact_name && (
+                        <div>
+                          <p className="text-xs text-gray-500">Contact</p>
+                          <p className="text-sm text-gray-700">{load.receiver_contact_name}</p>
+                          {load.receiver_contact_phone && (
+                            <p className="text-sm text-gray-600">{load.receiver_contact_phone}</p>
+                          )}
+                        </div>
+                      )}
+                      {load.receiver_appointment_time && (
+                        <div>
+                          <p className="text-xs text-gray-500">Appointment Time</p>
+                          <p className="text-sm text-gray-700">{load.receiver_appointment_time}</p>
+                        </div>
+                      )}
+                      {load.receiver_instructions && (
+                        <div>
+                          <p className="text-xs text-gray-500">Special Instructions</p>
+                          <p className="text-sm text-gray-700 bg-white p-2 rounded">{load.receiver_instructions}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Carrier Info */}
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">Carrier</h4>
@@ -2780,7 +2866,7 @@ function DeliveryConfirmModal({ load, onClose, onSuccess, showToast }) {
 }
 
 // Load Form Modal
-function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToast }) {
+function LoadFormModal({ load, carriers, customers, facilities, onClose, onSuccess, showToast }) {
   const [formData, setFormData] = useState({
     load_number: load?.load_number || '',
     customer_name: load?.customer_name || '',
@@ -2798,7 +2884,21 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
     rate_paid_to_carrier: load?.rate_paid_to_carrier || '',
     rate_billed_to_customer: load?.rate_billed_to_customer || '',
     miles: load?.miles || '',
-    notes: load?.notes || ''
+    notes: load?.notes || '',
+    // Shipper fields
+    shipper_id: load?.shipper_id || null,
+    shipper_name: load?.shipper_name || '',
+    shipper_contact_name: load?.shipper_contact_name || '',
+    shipper_contact_phone: load?.shipper_contact_phone || '',
+    shipper_instructions: load?.shipper_instructions || '',
+    shipper_appointment_time: load?.shipper_appointment_time || '',
+    // Receiver fields
+    receiver_id: load?.receiver_id || null,
+    receiver_name: load?.receiver_name || '',
+    receiver_contact_name: load?.receiver_contact_name || '',
+    receiver_contact_phone: load?.receiver_contact_phone || '',
+    receiver_instructions: load?.receiver_instructions || '',
+    receiver_appointment_time: load?.receiver_appointment_time || ''
   });
   const [loading, setLoading] = useState(false);
   const [zipLookupLoading, setZipLookupLoading] = useState(false);
@@ -3030,12 +3130,62 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
     }
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Create shipper facility if needed
+      if (!sanitizedData.shipper_id && sanitizedData.shipper_name) {
+        const { data: newShipper, error: shipperError } = await supabase
+          .from('facilities')
+          .insert([{
+            facility_name: sanitizedData.shipper_name,
+            address_line1: sanitizedData.origin_city,
+            city: sanitizedData.origin_city,
+            state: sanitizedData.origin_state,
+            zip: sanitizedData.origin_zip,
+            contact_name: sanitizedData.shipper_contact_name,
+            contact_phone: sanitizedData.shipper_contact_phone,
+            special_instructions: sanitizedData.shipper_instructions,
+            facility_type: 'warehouse',
+            created_by: user.id
+          }])
+          .select()
+          .single();
+        
+        if (!shipperError && newShipper) {
+          sanitizedData.shipper_id = newShipper.id;
+        }
+      }
+      
+      // Create receiver facility if needed
+      if (!sanitizedData.receiver_id && sanitizedData.receiver_name) {
+        const { data: newReceiver, error: receiverError } = await supabase
+          .from('facilities')
+          .insert([{
+            facility_name: sanitizedData.receiver_name,
+            address_line1: sanitizedData.destination_city,
+            city: sanitizedData.destination_city,
+            state: sanitizedData.destination_state,
+            zip: sanitizedData.destination_zip,
+            contact_name: sanitizedData.receiver_contact_name,
+            contact_phone: sanitizedData.receiver_contact_phone,
+            special_instructions: sanitizedData.receiver_instructions,
+            facility_type: 'warehouse',
+            created_by: user.id
+          }])
+          .select()
+          .single();
+        
+        if (!receiverError && newReceiver) {
+          sanitizedData.receiver_id = newReceiver.id;
+        }
+      }
+      
+      // Save load
       if (load) {
         const { error } = await supabase.from('loads').update(sanitizedData).eq('id', load.id);
         if (error) throw error;
         showToast('Load updated successfully', 'success');
-    } else {
-        const { data: { user } } = await supabase.auth.getUser();
+      } else {
         const { error } = await supabase.from('loads').insert([{ 
           ...sanitizedData, 
           created_by: user.id, 
@@ -3091,6 +3241,121 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
                 {customers.map(c => <option key={c.id} value={c.name} />)}
               </datalist>
             </div>
+            
+            {/* Shipper (Pickup) Section */}
+            <div className="col-span-2 bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Package className="w-4 h-4 text-[#003366]" />
+                Shipper (Pickup Location)
+              </h4>
+              
+              {/* Shipper Selection */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Select Existing Facility (Optional)</label>
+                <select
+                  value={formData.shipper_id || ''}
+                  onChange={(e) => {
+                    const facilityId = e.target.value;
+                    if (facilityId === 'new') {
+                      setFormData({
+                        ...formData,
+                        shipper_id: null,
+                        shipper_name: '',
+                        shipper_contact_name: '',
+                        shipper_contact_phone: '',
+                        shipper_instructions: ''
+                      });
+                    } else if (facilityId) {
+                      const facility = facilities.find(f => f.id === facilityId);
+                      if (facility) {
+                        setFormData({
+                          ...formData,
+                          shipper_id: facility.id,
+                          shipper_name: facility.facility_name,
+                          shipper_contact_name: facility.contact_name || '',
+                          shipper_contact_phone: facility.contact_phone || '',
+                          shipper_instructions: facility.special_instructions || '',
+                          origin_city: facility.city,
+                          origin_state: facility.state,
+                          origin_zip: facility.zip
+                        });
+                      }
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                >
+                  <option value="">-- Select or Enter New --</option>
+                  <option value="new">+ Create New Facility</option>
+                  {facilities.length > 0 && (
+                    <optgroup label="All Facilities">
+                      {facilities.map(f => (
+                        <option key={f.id} value={f.id}>
+                          {f.facility_name} - {f.city}, {f.state}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+              
+              {/* Shipper Details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Facility Name</label>
+                  <input
+                    type="text"
+                    value={formData.shipper_name}
+                    onChange={(e) => setFormData({...formData, shipper_name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="e.g., Amazon Fulfillment DC-12"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Contact Name</label>
+                  <input
+                    type="text"
+                    value={formData.shipper_contact_name}
+                    onChange={(e) => setFormData({...formData, shipper_contact_name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="John Doe"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Contact Phone</label>
+                  <input
+                    type="tel"
+                    value={formData.shipper_contact_phone}
+                    onChange={(e) => setFormData({...formData, shipper_contact_phone: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Appointment Time (Optional)</label>
+                  <input
+                    type="time"
+                    value={formData.shipper_appointment_time}
+                    onChange={(e) => setFormData({...formData, shipper_appointment_time: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Special Instructions</label>
+                  <textarea
+                    value={formData.shipper_instructions}
+                    onChange={(e) => setFormData({...formData, shipper_instructions: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="e.g., Gate code: 1234, Enter through dock door 5"
+                    rows="2"
+                  />
+                </div>
+              </div>
+            </div>
+            
             {/* Origin Address */}
             <div className="col-span-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
               <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -3143,6 +3408,120 @@ function LoadFormModal({ load, carriers, customers, onClose, onSuccess, showToas
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">Enter ZIP and click Lookup to auto-fill city/state</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Receiver (Delivery) Section */}
+            <div className="col-span-2 bg-green-50 p-4 rounded-lg border border-green-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Building className="w-4 h-4 text-[#003366]" />
+                Receiver (Delivery Location)
+              </h4>
+              
+              {/* Receiver Selection */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Select Existing Facility (Optional)</label>
+                <select
+                  value={formData.receiver_id || ''}
+                  onChange={(e) => {
+                    const facilityId = e.target.value;
+                    if (facilityId === 'new') {
+                      setFormData({
+                        ...formData,
+                        receiver_id: null,
+                        receiver_name: '',
+                        receiver_contact_name: '',
+                        receiver_contact_phone: '',
+                        receiver_instructions: ''
+                      });
+                    } else if (facilityId) {
+                      const facility = facilities.find(f => f.id === facilityId);
+                      if (facility) {
+                        setFormData({
+                          ...formData,
+                          receiver_id: facility.id,
+                          receiver_name: facility.facility_name,
+                          receiver_contact_name: facility.contact_name || '',
+                          receiver_contact_phone: facility.contact_phone || '',
+                          receiver_instructions: facility.special_instructions || '',
+                          destination_city: facility.city,
+                          destination_state: facility.state,
+                          destination_zip: facility.zip
+                        });
+                      }
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                >
+                  <option value="">-- Select or Enter New --</option>
+                  <option value="new">+ Create New Facility</option>
+                  {facilities.length > 0 && (
+                    <optgroup label="All Facilities">
+                      {facilities.map(f => (
+                        <option key={f.id} value={f.id}>
+                          {f.facility_name} - {f.city}, {f.state}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+              
+              {/* Receiver Details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Facility Name</label>
+                  <input
+                    type="text"
+                    value={formData.receiver_name}
+                    onChange={(e) => setFormData({...formData, receiver_name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="e.g., Walmart Distribution Center"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Contact Name</label>
+                  <input
+                    type="text"
+                    value={formData.receiver_contact_name}
+                    onChange={(e) => setFormData({...formData, receiver_contact_name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="Jane Smith"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Contact Phone</label>
+                  <input
+                    type="tel"
+                    value={formData.receiver_contact_phone}
+                    onChange={(e) => setFormData({...formData, receiver_contact_phone: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="(555) 987-6543"
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Appointment Time (Optional)</label>
+                  <input
+                    type="time"
+                    value={formData.receiver_appointment_time}
+                    onChange={(e) => setFormData({...formData, receiver_appointment_time: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Special Instructions</label>
+                  <textarea
+                    value={formData.receiver_instructions}
+                    onChange={(e) => setFormData({...formData, receiver_instructions: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="e.g., Call 30 min before arrival, unload at dock 8"
+                    rows="2"
+                  />
                 </div>
               </div>
             </div>
