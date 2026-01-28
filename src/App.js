@@ -2675,40 +2675,98 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
                 {loadingAudit ? (
                   <p className="text-center py-8 text-gray-400">Loading history...</p>
                 ) : auditLogs.length > 0 ? (
-                  auditLogs.map((log) => (
-                    <div key={log.id} className="relative pl-6 pb-4 border-l-2 border-gray-100 last:border-0">
-                      <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full flex items-center justify-center ${
-                        log.action === 'INSERT' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
-                      }`}>
-                        {log.action === 'INSERT' ? <Plus className="w-2 h-2" /> : <Edit className="w-2 h-2" />}
-                      </div>
-                      <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="text-xs font-bold text-gray-900">
-                            {log.action === 'INSERT' ? 'Load Created' : 'Load Updated'}
-                          </span>
-                          <span className="text-[10px] text-gray-400">
-                            {new Date(log.created_at).toLocaleString()}
-                          </span>
+                  auditLogs.map((log) => {
+                    // Parse changes from JSONB
+                    const changes = log.changes || {};
+                    const oldData = changes.old || {};
+                    const newData = changes.new || {};
+                    
+                    // Fields to display in audit log
+                    const importantFields = [
+                      'status', 'carrier_name', 'driver_name', 'origin_city', 'origin_state',
+                      'destination_city', 'destination_state', 'pickup_date', 'scheduled_delivery_date',
+                      'rate_paid_to_carrier', 'rate_billed_to_customer', 'customer_name',
+                      'shipper_name', 'receiver_name', 'miles', 'notes'
+                    ];
+                    
+                    // Find changed fields
+                    const changedFields = importantFields.filter(field => {
+                      return oldData[field] !== undefined && 
+                             newData[field] !== undefined && 
+                             oldData[field] !== newData[field];
+                    });
+                    
+                    return (
+                      <div key={log.id} className="relative pl-6 pb-4 border-l-2 border-gray-100 last:border-0">
+                        <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full flex items-center justify-center ${
+                          log.action === 'INSERT' ? 'bg-green-100 text-green-600' : 
+                          log.action === 'DELETE' ? 'bg-red-100 text-red-600' :
+                          'bg-blue-100 text-blue-600'
+                        }`}>
+                          {log.action === 'INSERT' ? <Plus className="w-2 h-2" /> : 
+                           log.action === 'DELETE' ? <X className="w-2 h-2" /> :
+                           <Edit className="w-2 h-2" />}
                         </div>
-                        {log.action === 'UPDATE' && log.changed_fields && (
-                          <div className="mt-2 space-y-1">
-                            {Object.entries(log.changed_fields).map(([field, values]) => (
-                              <div key={field} className="text-[11px] flex items-center gap-2">
-                                <span className="text-gray-500 font-medium capitalize">{field.replace(/_/g, ' ')}:</span>
-                                <span className="text-red-400 line-through">{String(values.old)}</span>
-                                <ArrowRight className="w-3 h-3 text-gray-300" />
-                                <span className="text-green-600 font-medium">{String(values.new)}</span>
-                              </div>
-                            ))}
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-xs font-bold text-gray-900">
+                              {log.action === 'INSERT' ? 'Load Created' : 
+                               log.action === 'DELETE' ? 'Load Deleted' :
+                               'Load Updated'}
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              {new Date(log.created_at).toLocaleString()}
+                            </span>
                           </div>
-                        )}
-                        <p className="text-[10px] text-gray-500 mt-2">
-                          By: <span className="font-medium text-gray-700">{log.profiles?.full_name || 'System'}</span>
-                        </p>
+                          
+                          {/* Show changes for UPDATE actions */}
+                          {log.action === 'UPDATE' && changedFields.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                              {changedFields.map((field) => (
+                                <div key={field} className="text-[11px] flex items-start gap-2">
+                                  <span className="text-gray-500 font-medium capitalize min-w-[120px]">
+                                    {field.replace(/_/g, ' ')}:
+                                  </span>
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <span className="text-red-400 line-through max-w-[150px] truncate">
+                                      {oldData[field] || 'N/A'}
+                                    </span>
+                                    <ArrowRight className="w-3 h-3 text-gray-300 flex-shrink-0" />
+                                    <span className="text-green-600 font-medium max-w-[150px] truncate">
+                                      {newData[field] || 'N/A'}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Show summary for INSERT actions */}
+                          {log.action === 'INSERT' && newData.load_number && (
+                            <div className="mt-2 text-[11px] text-gray-600">
+                              <p>Load #{newData.load_number} created</p>
+                              {newData.customer_name && <p>Customer: {newData.customer_name}</p>}
+                              {newData.carrier_name && <p>Carrier: {newData.carrier_name}</p>}
+                            </div>
+                          )}
+                          
+                          {/* Show message if no field changes detected */}
+                          {log.action === 'UPDATE' && changedFields.length === 0 && (
+                            <p className="text-[11px] text-gray-400 mt-1 italic">
+                              Minor update (timestamps or system fields)
+                            </p>
+                          )}
+                          
+                          <p className="text-[10px] text-gray-500 mt-2 flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            <span className="font-medium text-gray-700">
+                              {log.profiles?.full_name || 'System'}
+                            </span>
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-center py-8 text-gray-400 italic">No history recorded yet.</p>
                 )}
@@ -3304,8 +3362,8 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-gray-600 mb-1">Facility Name</label>
-                  <input
-                    type="text"
+            <input
+              type="text"
                     value={formData.shipper_name}
                     onChange={(e) => setFormData({...formData, shipper_name: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
@@ -3315,8 +3373,8 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
                 
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Contact Name</label>
-                  <input
-                    type="text"
+            <input
+              type="text"
                     value={formData.shipper_contact_name}
                     onChange={(e) => setFormData({...formData, shipper_contact_name: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
