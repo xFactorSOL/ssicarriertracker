@@ -2352,6 +2352,17 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
                         <p className="text-xs text-gray-500">Facility Name</p>
                         <p className="font-medium text-gray-900">{load.shipper_name}</p>
                       </div>
+                      {(load.shipper_address || load.shipper_address_line2) && (
+                        <div>
+                          <p className="text-xs text-gray-500">Address</p>
+                          {load.shipper_address && (
+                            <p className="text-sm text-gray-700">{load.shipper_address}</p>
+                          )}
+                          {load.shipper_address_line2 && (
+                            <p className="text-sm text-gray-700">{load.shipper_address_line2}</p>
+                          )}
+                        </div>
+                      )}
                       {load.shipper_contact_name && (
                         <div>
                           <p className="text-xs text-gray-500">Contact</p>
@@ -2389,6 +2400,17 @@ function LoadDetailModal({ load, onClose, onEdit, showToast, onRefresh, currentU
                         <p className="text-xs text-gray-500">Facility Name</p>
                         <p className="font-medium text-gray-900">{load.receiver_name}</p>
                       </div>
+                      {(load.receiver_address || load.receiver_address_line2) && (
+                        <div>
+                          <p className="text-xs text-gray-500">Address</p>
+                          {load.receiver_address && (
+                            <p className="text-sm text-gray-700">{load.receiver_address}</p>
+                          )}
+                          {load.receiver_address_line2 && (
+                            <p className="text-sm text-gray-700">{load.receiver_address_line2}</p>
+                          )}
+                        </div>
+                      )}
                       {load.receiver_contact_name && (
                         <div>
                           <p className="text-xs text-gray-500">Contact</p>
@@ -2948,6 +2970,8 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
     // Shipper fields
     shipper_id: load?.shipper_id || null,
     shipper_name: load?.shipper_name || '',
+    shipper_address: load?.shipper_address || '',
+    shipper_address_line2: load?.shipper_address_line2 || '',
     shipper_contact_name: load?.shipper_contact_name || '',
     shipper_contact_phone: load?.shipper_contact_phone || '',
     shipper_instructions: load?.shipper_instructions || '',
@@ -2955,6 +2979,8 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
     // Receiver fields
     receiver_id: load?.receiver_id || null,
     receiver_name: load?.receiver_name || '',
+    receiver_address: load?.receiver_address || '',
+    receiver_address_line2: load?.receiver_address_line2 || '',
     receiver_contact_name: load?.receiver_contact_name || '',
     receiver_contact_phone: load?.receiver_contact_phone || '',
     receiver_instructions: load?.receiver_instructions || '',
@@ -3207,7 +3233,8 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
           .from('facilities')
           .insert([{
             facility_name: sanitizedData.shipper_name,
-            address_line1: sanitizedData.origin_city,
+            address_line1: sanitizedData.shipper_address || sanitizedData.origin_city,
+            address_line2: sanitizedData.shipper_address_line2 || null,
             city: sanitizedData.origin_city,
             state: sanitizedData.origin_state,
             zip: sanitizedData.origin_zip,
@@ -3231,7 +3258,8 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
           .from('facilities')
           .insert([{
             facility_name: sanitizedData.receiver_name,
-            address_line1: sanitizedData.destination_city,
+            address_line1: sanitizedData.receiver_address || sanitizedData.destination_city,
+            address_line2: sanitizedData.receiver_address_line2 || null,
             city: sanitizedData.destination_city,
             state: sanitizedData.destination_state,
             zip: sanitizedData.destination_zip,
@@ -3330,6 +3358,8 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
                         ...formData,
                         shipper_id: null,
                         shipper_name: '',
+                        shipper_address: '',
+                        shipper_address_line2: '',
                         shipper_contact_name: '',
                         shipper_contact_phone: '',
                         shipper_instructions: ''
@@ -3341,6 +3371,8 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
                           ...formData,
                           shipper_id: facility.id,
                           shipper_name: facility.facility_name,
+                          shipper_address: facility.address_line1 || '',
+                          shipper_address_line2: facility.address_line2 || '',
                           shipper_contact_name: facility.contact_name || '',
                           shipper_contact_phone: facility.contact_phone || '',
                           shipper_instructions: facility.special_instructions || '',
@@ -3377,6 +3409,28 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
                     onChange={(e) => setFormData({...formData, shipper_name: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
                     placeholder="e.g., Amazon Fulfillment DC-12"
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Street Address</label>
+            <input
+              type="text"
+                    value={formData.shipper_address}
+                    onChange={(e) => setFormData({...formData, shipper_address: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="e.g., 123 Warehouse Blvd"
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Address Line 2 (Optional)</label>
+                  <input
+                    type="text"
+                    value={formData.shipper_address_line2}
+                    onChange={(e) => setFormData({...formData, shipper_address_line2: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="Suite, Unit, Building, etc."
                   />
                 </div>
                 
@@ -3500,6 +3554,8 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
                         ...formData,
                         receiver_id: null,
                         receiver_name: '',
+                        receiver_address: '',
+                        receiver_address_line2: '',
                         receiver_contact_name: '',
                         receiver_contact_phone: '',
                         receiver_instructions: ''
@@ -3511,6 +3567,8 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
                           ...formData,
                           receiver_id: facility.id,
                           receiver_name: facility.facility_name,
+                          receiver_address: facility.address_line1 || '',
+                          receiver_address_line2: facility.address_line2 || '',
                           receiver_contact_name: facility.contact_name || '',
                           receiver_contact_phone: facility.contact_phone || '',
                           receiver_instructions: facility.special_instructions || '',
@@ -3547,6 +3605,28 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
                     onChange={(e) => setFormData({...formData, receiver_name: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
                     placeholder="e.g., Walmart Distribution Center"
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Street Address</label>
+                  <input
+                    type="text"
+                    value={formData.receiver_address}
+                    onChange={(e) => setFormData({...formData, receiver_address: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="e.g., 456 Distribution Way"
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Address Line 2 (Optional)</label>
+                  <input
+                    type="text"
+                    value={formData.receiver_address_line2}
+                    onChange={(e) => setFormData({...formData, receiver_address_line2: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003366]"
+                    placeholder="Suite, Unit, Building, etc."
                   />
                 </div>
                 
