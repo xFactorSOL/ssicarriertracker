@@ -3188,6 +3188,15 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
     if (sanitizedData.rate_billed_to_customer === '') {
       sanitizedData.rate_billed_to_customer = null;
     }
+    
+    // Convert empty strings to null for time fields
+    if (sanitizedData.shipper_appointment_time === '') {
+      sanitizedData.shipper_appointment_time = null;
+    }
+    
+    if (sanitizedData.receiver_appointment_time === '') {
+      sanitizedData.receiver_appointment_time = null;
+    }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
