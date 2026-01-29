@@ -618,6 +618,9 @@ export default function CarrierTracker() {
           {activeTab === 'customers' && (
             <CustomersPage customers={customers} loads={loads} onRefresh={fetchCustomers} showToast={showToast} />
           )}
+          {activeTab === 'facilities' && (
+            <FacilitiesPage facilities={facilities} loads={loads} onRefresh={fetchFacilities} showToast={showToast} />
+          )}
           {activeTab === 'analytics' && (
             <AnalyticsPage loads={loads} carriers={carriers} customers={customers} />
           )}
@@ -888,6 +891,7 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, isManager, 
     { id: 'loads', icon: Package, label: 'Shipments' },
     { id: 'carriers', icon: Truck, label: 'Carriers' },
     { id: 'customers', icon: Building, label: 'Clients' },
+    { id: 'facilities', icon: MapPin, label: 'Facilities' },
     { id: 'analytics', icon: BarChart3, label: 'Analytics', managerOnly: true },
     { id: 'users', icon: Users, label: 'Team', superAdminOnly: true },
     { id: 'settings', icon: Settings, label: 'Settings' },
@@ -3864,6 +3868,445 @@ function LoadFormModal({ load, carriers, customers, facilities, onClose, onSucce
         </form>
         </div>
       </div>
+  );
+}
+
+// Facilities Page (Shippers/Receivers)
+function FacilitiesPage({ facilities, loads, onRefresh, showToast }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingFacility, setEditingFacility] = useState(null);
+  const [search, setSearch] = useState('');
+
+  const facilityStats = useMemo(() => {
+    return facilities.map(facility => {
+      const pickups = loads.filter(l => l.shipper_id === facility.id);
+      const deliveries = loads.filter(l => l.receiver_id === facility.id);
+      
+      return {
+        ...facility,
+        totalPickups: pickups.length,
+        totalDeliveries: deliveries.length,
+        totalActivity: pickups.length + deliveries.length
+      };
+    });
+  }, [facilities, loads]);
+
+  const filteredFacilities = facilityStats.filter(f => 
+    f.facility_name?.toLowerCase().includes(search.toLowerCase()) ||
+    f.city?.toLowerCase().includes(search.toLowerCase()) ||
+    f.state?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const saveFacility = async (data) => {
+    const sanitizedData = sanitizeFormData(data);
+    
+    if (editingFacility) {
+      const { error } = await supabase.from('facilities').update(sanitizedData).eq('id', editingFacility.id);
+      if (error) {
+        showToast(error.message, 'error');
+      } else {
+        showToast('Facility updated', 'success');
+        onRefresh();
+        setShowForm(false);
+        setEditingFacility(null);
+      }
+    } else {
+      const { error } = await supabase.from('facilities').insert([sanitizedData]);
+      if (error) {
+        showToast(error.message, 'error');
+      } else {
+        showToast('Facility added', 'success');
+        onRefresh();
+        setShowForm(false);
+      }
+    }
+  };
+
+  const deleteFacility = async (facilityId) => {
+    if (!window.confirm('Are you sure you want to delete this facility?')) return;
+    const { error } = await supabase.from('facilities').delete().eq('id', facilityId);
+    if (error) {
+      showToast(error.message, 'error');
+    } else {
+      showToast('Facility deleted', 'success');
+      onRefresh();
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Facilities</h2>
+          <p className="text-sm text-gray-500 mt-1">Manage shippers, receivers, and warehouses</p>
+        </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#003366] hover:bg-[#002244] text-white rounded-lg shadow-sm"
+        >
+          <Plus className="w-5 h-5" />
+          Add Facility
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search facilities..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg w-64"
+          />
+        </div>
+        <div className="text-sm text-gray-500">
+          {filteredFacilities.length} facilities
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredFacilities.map((facility) => (
+          <div key={facility.id} className="bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-12 h-12 bg-[#003366] rounded-lg flex items-center justify-center group-hover:bg-[#004080] transition-colors">
+                    <MapPin className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 group-hover:text-[#003366] transition-colors">
+                      {facility.facility_name}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {facility.city}, {facility.state} {facility.zip}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditingFacility(facility); setShowForm(true); }}
+                    className="p-2 text-gray-400 hover:text-[#003366] hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteFacility(facility.id); }}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                {facility.address_line1 && (
+                  <div className="text-sm text-gray-600">
+                    <MapPin className="w-3 h-3 inline mr-1" />
+                    {facility.address_line1}
+                    {facility.address_line2 && `, ${facility.address_line2}`}
+                  </div>
+                )}
+                {facility.contact_name && (
+                  <div className="text-sm text-gray-600">
+                    <User className="w-3 h-3 inline mr-1" />
+                    {facility.contact_name}
+                    {facility.contact_phone && ` • ${facility.contact_phone}`}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 rounded-lg p-3 group-hover:bg-blue-100 transition-colors">
+                  <p className="text-xs text-gray-500 mb-1">Pickups</p>
+                  <p className="text-xl font-bold text-[#003366]">{facility.totalPickups}</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 group-hover:bg-green-100 transition-colors">
+                  <p className="text-xs text-gray-500 mb-1">Deliveries</p>
+                  <p className="text-xl font-bold text-green-600">{facility.totalDeliveries}</p>
+                </div>
+              </div>
+
+              {facility.special_instructions && (
+                <div className="mt-4 p-3 bg-amber-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Special Instructions</p>
+                  <p className="text-xs text-gray-700 line-clamp-2">{facility.special_instructions}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filteredFacilities.length === 0 && (
+        <div className="text-center py-12">
+          <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No facilities found. Add your first facility to get started.</p>
+        </div>
+      )}
+
+      {showForm && (
+        <FacilityFormModal
+          facility={editingFacility}
+          onClose={() => { setShowForm(false); setEditingFacility(null); }}
+          onSave={saveFacility}
+          showToast={showToast}
+        />
+      )}
+    </div>
+  );
+}
+
+// Facility Form Modal
+function FacilityFormModal({ facility, onClose, onSave, showToast }) {
+  const [formData, setFormData] = useState({
+    facility_name: facility?.facility_name || '',
+    facility_type: facility?.facility_type || 'warehouse',
+    address_line1: facility?.address_line1 || '',
+    address_line2: facility?.address_line2 || '',
+    city: facility?.city || '',
+    state: facility?.state || '',
+    zip: facility?.zip || '',
+    country: facility?.country || 'USA',
+    contact_name: facility?.contact_name || '',
+    contact_phone: facility?.contact_phone || '',
+    contact_email: facility?.contact_email || '',
+    special_instructions: facility?.special_instructions || '',
+    gate_code: facility?.gate_code || '',
+    hours_of_operation: facility?.hours_of_operation || '',
+    appointment_required: facility?.appointment_required || false
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!formData.facility_name || !formData.city || !formData.state) {
+      showToast('Please fill in all required fields', 'error');
+      return;
+    }
+    
+    onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="text-xl font-bold">{facility ? 'Edit Facility' : 'Add New Facility'}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Facility Name *</label>
+              <input
+                type="text"
+                required
+                value={formData.facility_name}
+                onChange={(e) => setFormData({...formData, facility_name: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="e.g., Amazon Fulfillment Center DC-12"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Facility Type</label>
+              <select
+                value={formData.facility_type}
+                onChange={(e) => setFormData({...formData, facility_type: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+              >
+                <option value="warehouse">Warehouse</option>
+                <option value="distribution_center">Distribution Center</option>
+                <option value="manufacturing">Manufacturing</option>
+                <option value="retail">Retail</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Appointment Required?</label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.appointment_required}
+                  onChange={(e) => setFormData({...formData, appointment_required: e.target.checked})}
+                  className="w-5 h-5 text-[#003366] rounded focus:ring-2 focus:ring-[#003366]"
+                />
+                <span className="text-sm text-gray-600">Yes, appointments required</span>
+              </label>
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Street Address *</label>
+              <input
+                type="text"
+                required
+                value={formData.address_line1}
+                onChange={(e) => setFormData({...formData, address_line1: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="123 Warehouse Boulevard"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+              <input
+                type="text"
+                value={formData.address_line2}
+                onChange={(e) => setFormData({...formData, address_line2: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="Suite, Building, Floor, etc."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+              <input
+                type="text"
+                required
+                value={formData.city}
+                onChange={(e) => setFormData({...formData, city: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="Houston"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
+              <input
+                type="text"
+                required
+                maxLength="2"
+                value={formData.state}
+                onChange={(e) => setFormData({...formData, state: e.target.value.toUpperCase()})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366] uppercase"
+                placeholder="TX"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
+              <input
+                type="text"
+                maxLength="10"
+                value={formData.zip}
+                onChange={(e) => setFormData({...formData, zip: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="77001"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <input
+                type="text"
+                maxLength="3"
+                value={formData.country}
+                onChange={(e) => setFormData({...formData, country: e.target.value.toUpperCase()})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366] uppercase"
+                placeholder="USA"
+              />
+            </div>
+
+            <div className="col-span-2 border-t border-gray-200 pt-4 mt-2">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Contact Information</h4>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+              <input
+                type="text"
+                value={formData.contact_name}
+                onChange={(e) => setFormData({...formData, contact_name: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="John Doe"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+              <input
+                type="tel"
+                value={formData.contact_phone}
+                onChange={(e) => setFormData({...formData, contact_phone: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="(555) 123-4567"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+              <input
+                type="email"
+                value={formData.contact_email}
+                onChange={(e) => setFormData({...formData, contact_email: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="shipping@facility.com"
+              />
+            </div>
+
+            <div className="col-span-2 border-t border-gray-200 pt-4 mt-2">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Additional Details</h4>
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hours of Operation</label>
+              <input
+                type="text"
+                value={formData.hours_of_operation}
+                onChange={(e) => setFormData({...formData, hours_of_operation: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="Mon-Fri 8AM-5PM"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gate Code</label>
+              <input
+                type="text"
+                value={formData.gate_code}
+                onChange={(e) => setFormData({...formData, gate_code: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="#1234"
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Special Instructions</label>
+              <textarea
+                value={formData.special_instructions}
+                onChange={(e) => setFormData({...formData, special_instructions: e.target.value})}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003366]"
+                placeholder="Enter through dock door 5, call 30 min before arrival, etc."
+                rows="3"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-[#003366] hover:bg-[#002244] text-white rounded-lg"
+            >
+              {facility ? 'Update Facility' : 'Add Facility'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
