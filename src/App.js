@@ -7157,7 +7157,7 @@ function BidComparisonTab({ lanes, bids, onAddBid, onImportBids, rfqName, onAwar
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Carrier</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Rate</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">$/Mile</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Transit</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Transit (Days)</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">vs Avg</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Action</th>
@@ -7191,7 +7191,9 @@ function BidComparisonTab({ lanes, bids, onAddBid, onImportBids, rfqName, onAwar
                         <span className="text-gray-900">${bid.rate_per_mile?.toFixed(2)}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className="text-gray-700">{bid.transit_time_hours}h</span>
+                        <span className="text-gray-700">
+                          {bid.transit_time_hours ? (bid.transit_time_hours / 24).toFixed(1) : '-'}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className={`font-medium ${
@@ -7388,7 +7390,8 @@ function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, 
       .map(row => {
         const laneNumber = row['Lane #'] || row['Lane'] || row['Lane Number'];
         const rate = parseFloat(row['Rate (Your Quote)'] || row['Rate'] || row['Your Rate'] || 0);
-        const transitTime = parseInt(row['Transit Time (hours)'] || row['Transit Time'] || row['Transit'] || 0);
+        const transitDays = parseFloat(row['Transit Time (days)'] || row['Transit Time'] || row['Transit'] || 0);
+        const transitHours = transitDays > 0 ? Math.round(transitDays * 24) : null;
         const maxWeight = parseInt(row['Max Weight (lbs)'] || row['Max Weight'] || row['Weight'] || 45000);
         const notes = row['Notes'] || row['Carrier Notes'] || '';
 
@@ -7403,7 +7406,8 @@ function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, 
           lane_id: lane.id,
           rate_per_load: rate,
           rate_per_mile: ratePerMile,
-          transit_time_hours: transitTime || null,
+          transit_time_hours: transitHours,
+          transit_time_days: transitDays,
           max_weight: maxWeight,
           carrier_notes: notes,
           // Display info
@@ -7555,7 +7559,7 @@ function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, 
                       <th className="px-2 py-2 text-left">Route</th>
                       <th className="px-2 py-2 text-right">Rate</th>
                       <th className="px-2 py-2 text-right">$/Mile</th>
-                      <th className="px-2 py-2 text-right">Transit</th>
+                      <th className="px-2 py-2 text-right">Transit (days)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -7565,7 +7569,7 @@ function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, 
                         <td className="px-2 py-2">{bid.origin} → {bid.destination}</td>
                         <td className="px-2 py-2 text-right font-semibold">${bid.rate_per_load.toLocaleString()}</td>
                         <td className="px-2 py-2 text-right">${bid.rate_per_mile.toFixed(2)}</td>
-                        <td className="px-2 py-2 text-right">{bid.transit_time_hours || '-'}h</td>
+                        <td className="px-2 py-2 text-right">{bid.transit_time_days || '-'} days</td>
                       </tr>
                     ))}
                   </tbody>
@@ -7707,15 +7711,17 @@ function AddBidModal({ lane, rfqId, carriers, onClose, onSuccess, showToast }) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Transit Time (hours)
+                Transit Time (days)
               </label>
               <input
                 type="number"
-                value={formData.transit_time_hours}
-                onChange={(e) => setFormData({...formData, transit_time_hours: e.target.value})}
-                placeholder="32"
+                step="0.5"
+                value={formData.transit_time_hours ? formData.transit_time_hours / 24 : ''}
+                onChange={(e) => setFormData({...formData, transit_time_hours: parseFloat(e.target.value) * 24})}
+                placeholder="1.5"
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
               />
+              <p className="text-xs text-gray-500 mt-1">Enter transit time in days (e.g., 1.5 days = 36 hours)</p>
             </div>
           </div>
 
@@ -7783,7 +7789,7 @@ const generateBidTemplate = (lanes, rfqName, carrierName = 'CARRIER_NAME') => {
     'Annual Volume': lane.annual_volume,
     // Carrier fills these columns:
     'Rate (Your Quote)': '',
-    'Transit Time (hours)': '',
+    'Transit Time (days)': '',
     'Max Weight (lbs)': 45000,
     'Notes': ''
   }));
@@ -7812,7 +7818,7 @@ const generateBidTemplate = (lanes, rfqName, carrierName = 'CARRIER_NAME') => {
     [''],
     ['How to complete this template:'],
     ['1. Fill in the "Rate (Your Quote)" column with your rate per load for each lane'],
-    ['2. Fill in "Transit Time (hours)" - estimated transit time for each lane'],
+    ['2. Fill in "Transit Time (days)" - estimated transit time in days (e.g., 1.5 days)'],
     ['3. Update "Max Weight (lbs)" if different from 45,000 lbs'],
     ['4. Add any special notes or conditions in the "Notes" column'],
     ['5. Save this file and send back'],
