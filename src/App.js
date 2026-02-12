@@ -14,7 +14,7 @@ import {
   ArrowRight, Filter,
   CreditCard, Receipt,
   FileUp, File, ClipboardCheck, Calendar, FileText,
-  Clock, Play
+  Clock, Play, FileText as RFQIcon
 } from 'lucide-react';
 
 // Supabase client - Uses environment variables with fallbacks for local development
@@ -196,6 +196,7 @@ export default function CarrierTracker() {
   const [carriers, setCarriers] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [facilities, setFacilities] = useState([]);
+  const [rfqs, setRfqs] = useState([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -286,12 +287,14 @@ export default function CarrierTracker() {
       const t2 = setTimeout(() => fetchCarriers(), 1000);
       const t3 = setTimeout(() => fetchCustomers(), 2000);
       const t4 = setTimeout(() => fetchFacilities(), 3000);
+      const t5 = setTimeout(() => fetchRFQs(), 4000);
 
       return () => {
         clearTimeout(t1);
         clearTimeout(t2);
         clearTimeout(t3);
         clearTimeout(t4);
+        clearTimeout(t5);
       };
     }
   }, [user, profile, isActive]);
@@ -404,6 +407,14 @@ export default function CarrierTracker() {
       .select('*')
       .order('facility_name');
     if (data) setFacilities(data);
+  };
+
+  const fetchRFQs = async () => {
+    const { data } = await supabase
+      .from('vw_rfq_overview')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (data) setRfqs(data);
   };
 
   const handleAuth = async (e) => {
@@ -620,6 +631,9 @@ export default function CarrierTracker() {
           )}
           {activeTab === 'facilities' && (
             <FacilitiesPage facilities={facilities} loads={loads} onRefresh={fetchFacilities} showToast={showToast} />
+          )}
+          {activeTab === 'rfqs' && (
+            <RFQPage rfqs={rfqs} carriers={carriers} customers={customers} facilities={facilities} onRefresh={fetchRFQs} showToast={showToast} currentUser={profile} />
           )}
           {activeTab === 'analytics' && (
             <AnalyticsPage loads={loads} carriers={carriers} customers={customers} />
@@ -892,6 +906,7 @@ function Sidebar({ activeTab, setActiveTab, collapsed, setCollapsed, isManager, 
     { id: 'carriers', icon: Truck, label: 'Carriers' },
     { id: 'customers', icon: Building, label: 'Clients' },
     { id: 'facilities', icon: MapPin, label: 'Facilities' },
+    { id: 'rfqs', icon: RFQIcon, label: 'RFQs', managerOnly: true },
     { id: 'analytics', icon: BarChart3, label: 'Analytics', managerOnly: true },
     { id: 'users', icon: Users, label: 'Team', superAdminOnly: true },
     { id: 'settings', icon: Settings, label: 'Settings' },
@@ -6308,6 +6323,754 @@ function SettingsPage({ profile, showToast }) {
             <span>Never share your password with anyone</span>
           </li>
         </ul>
+      </div>
+    </div>
+  );
+}
+
+// RFQ Management Page
+function RFQPage({ rfqs, carriers, customers, facilities, onRefresh, showToast, currentUser }) {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [viewingRFQ, setViewingRFQ] = useState(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const filteredRFQs = rfqs.filter(rfq => {
+    const matchesSearch = rfq.rfq_name.toLowerCase().includes(search.toLowerCase()) ||
+                         rfq.rfq_number.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || rfq.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  if (viewingRFQ) {
+    return (
+      <RFQDetailsView 
+        rfq={viewingRFQ} 
+        carriers={carriers}
+        facilities={facilities}
+        onBack={() => setViewingRFQ(null)} 
+        onRefresh={onRefresh}
+        showToast={showToast}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">RFQ Management</h1>
+          <p className="text-sm text-gray-500 mt-1">Create and manage Request for Quotes</p>
+        </div>
+        <button
+          onClick={() => setShowCreateForm(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          New RFQ
+        </button>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total RFQs</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{rfqs.length}</p>
+            </div>
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <FileText className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Active</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {rfqs.filter(r => r.status === 'sent' || r.status === 'in_review').length}
+              </p>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg">
+              <Activity className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Pending Bids</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {rfqs.reduce((sum, r) => sum + (r.total_responses || 0), 0)}
+              </p>
+            </div>
+            <div className="bg-amber-50 p-3 rounded-lg">
+              <Clock className="w-6 h-6 text-amber-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Awarded</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {rfqs.filter(r => r.status === 'awarded').length}
+              </p>
+            </div>
+            <div className="bg-emerald-50 p-3 rounded-lg">
+              <Award className="w-6 h-6 text-emerald-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters & Search */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search RFQs by name or number..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+          >
+            <option value="all">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="sent">Sent</option>
+            <option value="in_review">In Review</option>
+            <option value="awarded">Awarded</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+      </div>
+
+      {/* RFQ List */}
+      <div className="space-y-4">
+        {filteredRFQs.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No RFQs found</h3>
+            <p className="text-gray-500 mb-6">Get started by creating your first RFQ</p>
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Create RFQ
+            </button>
+          </div>
+        ) : (
+          filteredRFQs.map((rfq) => (
+            <RFQCard 
+              key={rfq.id} 
+              rfq={rfq} 
+              onClick={() => setViewingRFQ(rfq)}
+              showToast={showToast}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Create RFQ Modal */}
+      {showCreateForm && (
+        <CreateRFQModal
+          onClose={() => setShowCreateForm(false)}
+          onSuccess={() => {
+            setShowCreateForm(false);
+            onRefresh();
+            showToast('RFQ created successfully!', 'success');
+          }}
+          customers={customers}
+          currentUser={currentUser}
+          showToast={showToast}
+        />
+      )}
+    </div>
+  );
+}
+
+// RFQ Card Component
+function RFQCard({ rfq, onClick }) {
+  const getStatusColor = (status) => {
+    const colors = {
+      draft: 'bg-gray-100 text-gray-700',
+      sent: 'bg-blue-50 text-blue-700',
+      in_review: 'bg-amber-50 text-amber-700',
+      awarded: 'bg-green-50 text-green-700',
+      closed: 'bg-gray-100 text-gray-500',
+      cancelled: 'bg-red-50 text-red-700'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-700';
+  };
+
+  const daysUntilDeadline = Math.ceil((rfq.days_until_deadline || 0) / 24);
+  const isUrgent = daysUntilDeadline > 0 && daysUntilDeadline <= 3;
+
+  return (
+    <div 
+      onClick={onClick}
+      className="bg-white rounded-lg border border-gray-200 p-6 hover:border-[#003366] hover:shadow-md transition-all cursor-pointer"
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-2">
+            <h3 className="text-lg font-semibold text-gray-900">{rfq.rfq_name}</h3>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(rfq.status)}`}>
+              {rfq.status.replace('_', ' ').toUpperCase()}
+            </span>
+            {isUrgent && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                Due Soon
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 mb-4">RFQ #{rfq.rfq_number}</p>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-gray-500">Total Lanes</p>
+              <p className="font-semibold text-gray-900">{rfq.total_lanes || 0}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Responses</p>
+              <p className="font-semibold text-gray-900">{rfq.total_responses || 0}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Awarded</p>
+              <p className="font-semibold text-gray-900">{rfq.total_awarded || 0}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Deadline</p>
+              <p className="font-semibold text-gray-900">
+                {rfq.response_deadline ? new Date(rfq.response_deadline).toLocaleDateString() : 'Not set'}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <ChevronRight className="w-5 h-5 text-gray-400 ml-4" />
+      </div>
+    </div>
+  );
+}
+
+// Create RFQ Modal
+function CreateRFQModal({ onClose, onSuccess, customers, currentUser, showToast }) {
+  const [formData, setFormData] = useState({
+    rfq_name: '',
+    customer_id: '',
+    valid_from: '',
+    valid_until: '',
+    response_deadline: '',
+    description: '',
+    special_requirements: '',
+    insurance_required: 100000
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('rfq_requests')
+        .insert([{
+          ...formData,
+          status: 'draft',
+          created_by: currentUser?.id
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      showToast('RFQ created successfully!', 'success');
+      onSuccess(data);
+    } catch (error) {
+      console.error('Error creating RFQ:', error);
+      showToast('Failed to create RFQ: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">Create New RFQ</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* RFQ Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              RFQ Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.rfq_name}
+              onChange={(e) => setFormData({...formData, rfq_name: e.target.value})}
+              placeholder="e.g., Walmart Q1 2026 Lanes"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+              required
+            />
+          </div>
+
+          {/* Customer */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Customer (Optional)
+            </label>
+            <select
+              value={formData.customer_id}
+              onChange={(e) => setFormData({...formData, customer_id: e.target.value})}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            >
+              <option value="">Select customer...</option>
+              {customers.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Valid From <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={formData.valid_from}
+                onChange={(e) => setFormData({...formData, valid_from: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Valid Until <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={formData.valid_until}
+                onChange={(e) => setFormData({...formData, valid_until: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Response Deadline */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Response Deadline <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={formData.response_deadline}
+              onChange={(e) => setFormData({...formData, response_deadline: e.target.value})}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+              required
+            />
+          </div>
+
+          {/* Insurance */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Cargo Insurance Required ($)
+            </label>
+            <input
+              type="number"
+              value={formData.insurance_required}
+              onChange={(e) => setFormData({...formData, insurance_required: parseFloat(e.target.value)})}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              rows={3}
+              placeholder="Brief description of this RFQ..."
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            />
+          </div>
+
+          {/* Special Requirements */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Special Requirements
+            </label>
+            <textarea
+              value={formData.special_requirements}
+              onChange={(e) => setFormData({...formData, special_requirements: e.target.value})}
+              rows={4}
+              placeholder="e.g., Food grade equipment, fumigated, temperature controlled..."
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Creating...' : 'Create RFQ'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// RFQ Details View Component (placeholder - will expand in next message)
+function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToast }) {
+  const [activeTab, setActiveTab] = useState('lanes');
+  const [lanes, setLanes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showImportCSV, setShowImportCSV] = useState(false);
+
+  useEffect(() => {
+    fetchLanes();
+  }, [rfq.id]);
+
+  const fetchLanes = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('vw_rfq_lanes_with_stats')
+      .select('*')
+      .eq('rfq_id', rfq.id)
+      .order('lane_number');
+    
+    if (data) setLanes(data);
+    setLoading(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onBack}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ChevronRight className="w-5 h-5 transform rotate-180" />
+        </button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-gray-900">{rfq.rfq_name}</h1>
+          <p className="text-sm text-gray-500">RFQ #{rfq.rfq_number}</p>
+        </div>
+        <button
+          onClick={() => setShowImportCSV(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+        >
+          <Upload className="w-4 h-4" />
+          Import Lanes (CSV)
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <p className="text-sm text-gray-500">Total Lanes</p>
+          <p className="text-2xl font-bold text-gray-900">{lanes.length}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <p className="text-sm text-gray-500">Responses</p>
+          <p className="text-2xl font-bold text-gray-900">{rfq.total_responses || 0}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <p className="text-sm text-gray-500">Awarded</p>
+          <p className="text-2xl font-bold text-gray-900">{rfq.total_awarded || 0}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <p className="text-sm text-gray-500">Deadline</p>
+          <p className="text-sm font-bold text-gray-900">
+            {rfq.response_deadline ? new Date(rfq.response_deadline).toLocaleDateString() : 'Not set'}
+          </p>
+        </div>
+      </div>
+
+      {/* Lanes List */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Lanes ({lanes.length})</h2>
+        </div>
+        <div className="p-6">
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">Loading lanes...</div>
+          ) : lanes.length === 0 ? (
+            <div className="text-center py-12">
+              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No lanes yet</h3>
+              <p className="text-gray-500 mb-6">Import lanes from CSV to get started</p>
+              <button
+                onClick={() => setShowImportCSV(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                Import Lanes
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {lanes.map((lane) => (
+                <div key={lane.id} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#003366] transition-colors">
+                  <div className="bg-gray-100 px-3 py-1 rounded-lg">
+                    <span className="text-sm font-bold text-gray-900">#{lane.lane_number}</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{lane.origin} → {lane.destination}</p>
+                    <p className="text-sm text-gray-500">{lane.equipment_type} • {lane.commodity}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">Volume</p>
+                    <p className="font-semibold text-gray-900">{lane.annual_volume}/yr</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500">Miles</p>
+                    <p className="font-semibold text-gray-900">{lane.estimated_miles}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Import CSV Modal */}
+      {showImportCSV && (
+        <ImportLanesCSVModal
+          rfqId={rfq.id}
+          onClose={() => setShowImportCSV(false)}
+          onSuccess={() => {
+            setShowImportCSV(false);
+            fetchLanes();
+            onRefresh();
+            showToast('Lanes imported successfully!', 'success');
+          }}
+          showToast={showToast}
+        />
+      )}
+    </div>
+  );
+}
+
+// Import Lanes CSV Modal
+function ImportLanesCSVModal({ rfqId, onClose, onSuccess, showToast }) {
+  const [csvText, setCsvText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [parsedLanes, setParsedLanes] = useState([]);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setCsvText(event.target.result);
+    };
+    reader.readAsText(file);
+  };
+
+  const parseCSV = () => {
+    const lines = csvText.split('\n');
+    const lanes = [];
+    
+    // Skip header rows (adjust based on your CSV format)
+    for (let i = 4; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+      if (columns.length < 7) continue;
+      
+      lanes.push({
+        lane_number: i - 3,
+        origin_city: columns[0],
+        origin_state: columns[1],
+        destination_city: columns[2],
+        destination_state: columns[3],
+        equipment_type: columns[4],
+        commodity: columns[5],
+        annual_volume: parseInt(columns[6]) || 0,
+        service_type: columns[7] || 'Full Truckload',
+        estimated_miles: 1000 // Default, will calculate later
+      });
+    }
+    
+    setParsedLanes(lanes);
+    if (lanes.length > 0) {
+      showToast(`Parsed ${lanes.length} lanes from CSV`, 'success');
+    } else {
+      showToast('No valid lanes found in CSV', 'warning');
+    }
+  };
+
+  const handleImport = async () => {
+    if (parsedLanes.length === 0) {
+      showToast('Please parse CSV first', 'warning');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const lanesToInsert = parsedLanes.map(lane => ({
+        ...lane,
+        rfq_id: rfqId
+      }));
+
+      const { error } = await supabase
+        .from('rfq_lanes')
+        .insert(lanesToInsert);
+
+      if (error) throw error;
+
+      onSuccess();
+    } catch (error) {
+      console.error('Error importing lanes:', error);
+      showToast('Failed to import lanes: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">Import Lanes from CSV</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* File Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload CSV File
+            </label>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Expected format: Origin City, Origin State, Destination City, Destination State, Equipment Type, Commodity, Annual Volume, Service Type
+            </p>
+          </div>
+
+          {/* CSV Preview */}
+          {csvText && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                CSV Preview
+              </label>
+              <textarea
+                value={csvText}
+                onChange={(e) => setCsvText(e.target.value)}
+                rows={10}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366] font-mono text-xs"
+              />
+              <button
+                onClick={parseCSV}
+                className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Parse CSV
+              </button>
+            </div>
+          )}
+
+          {/* Parsed Lanes Preview */}
+          {parsedLanes.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">
+                Parsed Lanes ({parsedLanes.length})
+              </h3>
+              <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-2 py-2 text-left">#</th>
+                      <th className="px-2 py-2 text-left">Origin</th>
+                      <th className="px-2 py-2 text-left">Destination</th>
+                      <th className="px-2 py-2 text-left">Equipment</th>
+                      <th className="px-2 py-2 text-left">Commodity</th>
+                      <th className="px-2 py-2 text-right">Volume</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parsedLanes.map((lane, idx) => (
+                      <tr key={idx} className="border-t border-gray-100">
+                        <td className="px-2 py-2">{lane.lane_number}</td>
+                        <td className="px-2 py-2">{lane.origin_city}, {lane.origin_state}</td>
+                        <td className="px-2 py-2">{lane.destination_city}, {lane.destination_state}</td>
+                        <td className="px-2 py-2">{lane.equipment_type}</td>
+                        <td className="px-2 py-2">{lane.commodity}</td>
+                        <td className="px-2 py-2 text-right">{lane.annual_volume}/yr</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleImport}
+              disabled={loading || parsedLanes.length === 0}
+              className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Importing...' : `Import ${parsedLanes.length} Lanes`}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
