@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import * as XLSX from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area
@@ -6363,13 +6364,25 @@ function RFQPage({ rfqs, carriers, customers, facilities, onRefresh, showToast, 
           <h1 className="text-2xl font-bold text-gray-900">RFQ Management</h1>
           <p className="text-sm text-gray-500 mt-1">Create and manage Request for Quotes</p>
         </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New RFQ
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              downloadWalmartTemplate();
+              showToast('Walmart template downloaded!', 'success');
+            }}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Download Walmart Template
+          </button>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New RFQ
+          </button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -6794,13 +6807,23 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
           <h1 className="text-2xl font-bold text-gray-900">{rfq.rfq_name}</h1>
           <p className="text-sm text-gray-500">RFQ #{rfq.rfq_number}</p>
         </div>
-        <button
-          onClick={() => setShowImportCSV(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
-        >
-          <Upload className="w-4 h-4" />
-          Import Lanes (CSV)
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportLanesToExcel(lanes, rfq.rfq_name)}
+            disabled={lanes.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            Export to Excel
+          </button>
+          <button
+            onClick={() => setShowImportCSV(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Import from Excel/CSV
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -6890,21 +6913,188 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
   );
 }
 
-// Import Lanes CSV Modal
+// Export lanes to Excel
+const exportLanesToExcel = (lanes, rfqName) => {
+  if (!lanes || lanes.length === 0) return;
+
+  // Prepare data for Excel
+  const excelData = lanes.map(lane => ({
+    'Lane #': lane.lane_number,
+    'Origin City': lane.origin_city || lane.origin?.split(',')[0] || '',
+    'Origin State': lane.origin_state || lane.origin?.split(',')[1]?.trim() || '',
+    'Destination City': lane.destination_city || lane.destination?.split(',')[0] || '',
+    'Destination State': lane.destination_state || lane.destination?.split(',')[1]?.trim() || '',
+    'Equipment Type': lane.equipment_type,
+    'Commodity': lane.commodity,
+    'Annual Volume': lane.annual_volume,
+    'Service Type': lane.service_type || 'Full Truckload',
+    'Estimated Miles': lane.estimated_miles || '',
+    'Temperature Min (F)': lane.temperature_min || '',
+    'Temperature Max (F)': lane.temperature_max || '',
+    'Special Instructions': lane.special_instructions || ''
+  }));
+
+  // Create workbook and worksheet
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(excelData);
+
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 8 },  // Lane #
+    { wch: 15 }, // Origin City
+    { wch: 12 }, // Origin State
+    { wch: 15 }, // Destination City
+    { wch: 15 }, // Destination State
+    { wch: 20 }, // Equipment Type
+    { wch: 20 }, // Commodity
+    { wch: 12 }, // Annual Volume
+    { wch: 20 }, // Service Type
+    { wch: 12 }, // Miles
+    { wch: 12 }, // Temp Min
+    { wch: 12 }, // Temp Max
+    { wch: 30 }  // Instructions
+  ];
+
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(wb, ws, 'RFQ Lanes');
+
+  // Generate filename
+  const filename = `${rfqName.replace(/[^a-z0-9]/gi, '_')}_Lanes_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+  // Download file
+  XLSX.writeFile(wb, filename);
+};
+
+// Generate Excel template with Walmart data
+const downloadWalmartTemplate = () => {
+  const walmartLanes = [
+    { lane: 1, originCity: 'Wheeling', originState: 'IL', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Reefer", commodity: 'Frozen Pizza', volume: 2, miles: 1380, tempMin: -10, tempMax: 32 },
+    { lane: 2, originCity: 'Perryville', originState: 'MO', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Cereal', volume: 2, miles: 1150 },
+    { lane: 3, originCity: 'Perryville', originState: 'MO', destCity: 'Houston', destState: 'TX', equipment: "53' Trailer Dry", commodity: 'Cereal', volume: 2, miles: 900 },
+    { lane: 4, originCity: 'Visalia', originState: 'CA', destCity: 'Houston', destState: 'TX', equipment: "53' Trailer Dry", commodity: 'Pet Food', volume: 2, miles: 1600 },
+    { lane: 5, originCity: 'Visalia', originState: 'CA', destCity: 'Los Angeles', destState: 'CA', equipment: "53' Trailer Dry", commodity: 'Pet Food', volume: 2, miles: 200 },
+    { lane: 6, originCity: 'Newnan', originState: 'GA', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Snacks', volume: 8, miles: 650 },
+    { lane: 7, originCity: 'Pleasant Prairie', originState: 'WI', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Dressing', volume: 6, miles: 1420 },
+    { lane: 8, originCity: 'Cambria', originState: 'WI', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Canned Foods', volume: 60, miles: 1450 },
+    { lane: 9, originCity: 'Atlanta', originState: 'GA', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Canned Foods', volume: 12, miles: 660 },
+    { lane: 10, originCity: 'Opelousas', originState: 'LA', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Coco Oil', volume: 10, miles: 1100 },
+    { lane: 11, originCity: 'Burlington', originState: 'IA', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Cookies', volume: 6, miles: 1300 },
+    { lane: 12, originCity: 'Charleston', originState: 'SC', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Clothes', volume: 4, miles: 550 },
+    { lane: 13, originCity: 'St Ansgar', originState: 'IA', destCity: 'New Jersey', destState: 'NJ', equipment: "53' Trailer Dry", commodity: 'Oatmeal', volume: 10, miles: 1100 },
+    { lane: 14, originCity: 'St Ansgar', originState: 'IA', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Oatmeal', volume: 4, miles: 1400 },
+    { lane: 15, originCity: 'La Grange', originState: 'GA', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Aluminum Foil', volume: 12, miles: 600 },
+    { lane: 16, originCity: 'Los Angeles', originState: 'CA', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Clothes', volume: 4, miles: 2750 },
+    { lane: 17, originCity: 'Elk Grove Village', originState: 'IL', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Reefer", commodity: 'Marshmallows', volume: 12, miles: 1380, tempMin: -10, tempMax: 32 },
+    { lane: 18, originCity: 'Westerville', originState: 'OH', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Dry/Empty Cylinder', volume: 4, miles: 1150 },
+    { lane: 19, originCity: 'Victorville', originState: 'CA', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Childrens Products', volume: 2, miles: 2700 },
+    { lane: 20, originCity: 'Carthage', originState: 'MO', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Reefer", commodity: 'Mozzarella Cheese/Chilled', volume: 80, miles: 1200, tempMin: -10, tempMax: 32 },
+    { lane: 21, originCity: 'Bristol', originState: 'VA', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Dry/Cookie-Snacks', volume: 20, miles: 900 },
+    { lane: 22, originCity: 'Fowler', originState: 'CA', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Raisins', volume: 12, miles: 2800 },
+    { lane: 23, originCity: 'New Jersey', originState: 'NJ', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'GDSM/Clothing', volume: 4, miles: 1280 },
+    { lane: 24, originCity: 'Chesterfield', originState: 'MO', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Cards', volume: 4, miles: 1200 },
+    { lane: 25, originCity: 'Victorville', originState: 'CA', destCity: 'Los Angeles', destState: 'CA', equipment: "53' Trailer Dry", commodity: 'Childrens Products', volume: 4, miles: 85 },
+    { lane: 26, originCity: 'Greer', originState: 'SC', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Juice', volume: 8, miles: 620 },
+    { lane: 27, originCity: 'El Paso', originState: 'TX', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Communication Equipment', volume: 4, miles: 1950 },
+    { lane: 28, originCity: 'Spanish Fork', originState: 'UT', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Scented Oils & Diffusers', volume: 2, miles: 2200 },
+    { lane: 29, originCity: 'Delaware', originState: 'OH', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Diapers', volume: 12, miles: 1150 },
+    { lane: 30, originCity: 'Bedford Park', originState: 'IL', destCity: 'Miami', destState: 'FL', equipment: "53' Trailer Dry", commodity: 'Dry Cookies', volume: 8, miles: 1380 }
+  ];
+
+  const excelData = walmartLanes.map(lane => ({
+    'Lane #': lane.lane,
+    'Origin City': lane.originCity,
+    'Origin State': lane.originState,
+    'Destination City': lane.destCity,
+    'Destination State': lane.destState,
+    'Equipment Type': lane.equipment,
+    'Commodity': lane.commodity,
+    'Annual Volume': lane.volume,
+    'Service Type': 'Single -Interstate Trucking',
+    'Estimated Miles': lane.miles,
+    'Temperature Min (F)': lane.tempMin || '',
+    'Temperature Max (F)': lane.tempMax || '',
+    'Special Instructions': ''
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(excelData);
+
+  ws['!cols'] = [
+    { wch: 8 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+    { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 25 }, { wch: 12 },
+    { wch: 12 }, { wch: 12 }, { wch: 30 }
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Walmart RFQ Lanes');
+  XLSX.writeFile(wb, 'Walmart_Q1_2026_RFQ_Template.xlsx');
+};
+
+// Import Lanes from Excel/CSV Modal
 function ImportLanesCSVModal({ rfqId, onClose, onSuccess, showToast }) {
   const [csvText, setCsvText] = useState('');
   const [loading, setLoading] = useState(false);
   const [parsedLanes, setParsedLanes] = useState([]);
+  const [fileName, setFileName] = useState('');
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setCsvText(event.target.result);
-    };
-    reader.readAsText(file);
+    setFileName(file.name);
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+
+    if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      // Handle Excel file
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+          
+          // Convert Excel data to CSV text for preview
+          const csvFromExcel = XLSX.utils.sheet_to_csv(firstSheet);
+          setCsvText(csvFromExcel);
+          
+          // Auto-parse Excel data
+          parseExcelData(jsonData);
+        } catch (error) {
+          showToast('Error reading Excel file: ' + error.message, 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      // Handle CSV file
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCsvText(event.target.result);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const parseExcelData = (jsonData) => {
+    const lanes = jsonData.map((row, index) => ({
+      lane_number: row['Lane #'] || index + 1,
+      origin_city: row['Origin City'] || '',
+      origin_state: row['Origin State'] || '',
+      destination_city: row['Destination City'] || '',
+      destination_state: row['Destination State'] || '',
+      equipment_type: row['Equipment Type'] || '',
+      commodity: row['Commodity'] || '',
+      annual_volume: parseInt(row['Annual Volume']) || 0,
+      service_type: row['Service Type'] || 'Full Truckload',
+      estimated_miles: parseInt(row['Estimated Miles']) || 1000,
+      temperature_min: row['Temperature Min (F)'] || null,
+      temperature_max: row['Temperature Max (F)'] || null,
+      special_instructions: row['Special Instructions'] || ''
+    })).filter(lane => lane.origin_city && lane.destination_city);
+
+    setParsedLanes(lanes);
+    if (lanes.length > 0) {
+      showToast(`Parsed ${lanes.length} lanes from Excel`, 'success');
+    }
   };
 
   const parseCSV = () => {
@@ -6973,31 +7163,60 @@ function ImportLanesCSVModal({ rfqId, onClose, onSuccess, showToast }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Import Lanes from CSV</h2>
+          <h2 className="text-xl font-bold text-gray-900">Import Lanes from Excel/CSV</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Quick Template Download */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <Download className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-900 mb-1">Need a template?</h3>
+                <p className="text-sm text-blue-700 mb-3">
+                  Download pre-filled Excel template with all 30 Walmart lanes
+                </p>
+                <button
+                  onClick={() => {
+                    downloadWalmartTemplate();
+                    showToast('Walmart template downloaded!', 'success');
+                  }}
+                  className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Download Walmart Template
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* File Upload */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Upload CSV File
+              Upload Excel (.xlsx) or CSV File
             </label>
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               onChange={handleFileUpload}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
             />
+            {fileName && (
+              <p className="text-xs text-green-600 mt-1">
+                ✓ {fileName} loaded
+              </p>
+            )}
             <p className="text-xs text-gray-500 mt-1">
-              Expected format: Origin City, Origin State, Destination City, Destination State, Equipment Type, Commodity, Annual Volume, Service Type
+              Supports: Excel (.xlsx, .xls) and CSV (.csv) files
             </p>
           </div>
 
-          {/* CSV Preview */}
-          {csvText && (
+          {/* Data Preview - Only show for CSV or if user wants to see it */}
+          {csvText && parsedLanes.length === 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 CSV Preview
