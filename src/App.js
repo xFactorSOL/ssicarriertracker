@@ -6778,6 +6778,7 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
   const [showImportCSV, setShowImportCSV] = useState(false);
   const [activeTab, setActiveTab] = useState('lanes');
   const [showAddBid, setShowAddBid] = useState(null); // lane to add bid for
+  const [showImportBids, setShowImportBids] = useState(false);
   const [bids, setBids] = useState([]);
 
   const fetchLanes = useCallback(async () => {
@@ -6908,6 +6909,8 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
               loading={loading}
               onAddBid={(lane) => setShowAddBid(lane)}
               onImport={() => setShowImportCSV(true)}
+              onImportBids={() => setShowImportBids(true)}
+              rfqName={rfq.rfq_name}
             />
           )}
           
@@ -6916,6 +6919,8 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
               lanes={lanes}
               bids={bids}
               onAddBid={(lane) => setShowAddBid(lane)}
+              onImportBids={() => setShowImportBids(true)}
+              rfqName={rfq.rfq_name}
               onAwardLane={async (laneId, bidId) => {
                 // Award lane logic
                 const { error } = await supabase
@@ -6982,12 +6987,30 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
           showToast={showToast}
         />
       )}
+
+      {/* Import Bids Modal */}
+      {showImportBids && (
+        <ImportBidsModal
+          rfqId={rfq.id}
+          lanes={lanes}
+          carriers={carriers}
+          rfqName={rfq.rfq_name}
+          onClose={() => setShowImportBids(false)}
+          onSuccess={() => {
+            setShowImportBids(false);
+            fetchBids();
+            onRefresh();
+            showToast('Bids imported successfully!', 'success');
+          }}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 }
 
 // Lanes Tab Content
-function LanesTabContent({ lanes, loading, onAddBid, onImport }) {
+function LanesTabContent({ lanes, loading, onAddBid, onImport, onImportBids, rfqName }) {
   if (loading) {
     return <div className="text-center py-8 text-gray-500">Loading lanes...</div>;
   }
@@ -7010,57 +7033,80 @@ function LanesTabContent({ lanes, loading, onAddBid, onImport }) {
   }
 
   return (
-    <div className="space-y-2">
-      {lanes.map((lane) => (
-        <div key={lane.id} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#003366] transition-colors">
-          <div className="bg-gray-100 px-3 py-1 rounded-lg">
-            <span className="text-sm font-bold text-gray-900">#{lane.lane_number}</span>
+    <div className="space-y-4">
+      {/* Bulk Import Button */}
+      <div className="flex justify-between items-center">
+        <p className="text-sm text-gray-500">{lanes.length} lanes • {lanes.reduce((sum, l) => sum + (l.bids_received || 0), 0)} total bids</p>
+        <button
+          onClick={onImportBids}
+          className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          <Upload className="w-4 h-4" />
+          Import Carrier Bids from Excel
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {lanes.map((lane) => (
+          <div key={lane.id} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#003366] transition-colors">
+            <div className="bg-gray-100 px-3 py-1 rounded-lg">
+              <span className="text-sm font-bold text-gray-900">#{lane.lane_number}</span>
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-gray-900">{lane.origin} → {lane.destination}</p>
+              <p className="text-sm text-gray-500">{lane.equipment_type} • {lane.commodity}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-gray-500">Volume</p>
+              <p className="font-semibold text-gray-900">{lane.annual_volume}/yr</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-gray-500">Miles</p>
+              <p className="font-semibold text-gray-900">{lane.estimated_miles}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-gray-500">Bids</p>
+              <p className="font-semibold text-gray-900">{lane.bids_received || 0}</p>
+            </div>
+            <button
+              onClick={() => onAddBid(lane)}
+              className="px-3 py-1.5 text-sm bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+            >
+              + Add Bid
+            </button>
           </div>
-          <div className="flex-1">
-            <p className="font-medium text-gray-900">{lane.origin} → {lane.destination}</p>
-            <p className="text-sm text-gray-500">{lane.equipment_type} • {lane.commodity}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Volume</p>
-            <p className="font-semibold text-gray-900">{lane.annual_volume}/yr</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Miles</p>
-            <p className="font-semibold text-gray-900">{lane.estimated_miles}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Bids</p>
-            <p className="font-semibold text-gray-900">{lane.bids_received || 0}</p>
-          </div>
-          <button
-            onClick={() => onAddBid(lane)}
-            className="px-3 py-1.5 text-sm bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
-          >
-            + Add Bid
-          </button>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
 
 // Bid Comparison Tab
-function BidComparisonTab({ lanes, bids, onAddBid, onAwardLane, showToast }) {
+function BidComparisonTab({ lanes, bids, onAddBid, onImportBids, rfqName, onAwardLane, showToast }) {
   if (bids.length === 0) {
     return (
       <div className="text-center py-12">
         <Target className="w-16 h-16 text-gray-300 mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-gray-900 mb-2">No bids yet</h3>
         <p className="text-gray-500 mb-6">Add carrier bids to compare pricing</p>
-        {lanes.length > 0 && (
+        <div className="flex gap-3 justify-center">
+          {lanes.length > 0 && (
+            <button
+              onClick={() => onAddBid(lanes[0])}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add First Bid
+            </button>
+          )}
           <button
-            onClick={() => onAddBid(lanes[0])}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+            onClick={onImportBids}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <Plus className="w-4 h-4" />
-            Add First Bid
+            <Upload className="w-4 h-4" />
+            Import from Excel
           </button>
-        )}
+        </div>
       </div>
     );
   }
@@ -7306,6 +7352,251 @@ function AwardedLanesTab({ lanes, bids }) {
   );
 }
 
+// Import Bids Modal (Bulk Import from Excel)
+function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, showToast }) {
+  const [selectedCarrier, setSelectedCarrier] = useState('');
+  const [parsedBids, setParsedBids] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [fileName, setFileName] = useState('');
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        // Find the bid sheet (either 'Bid Sheet' or the first sheet)
+        const sheetName = workbook.SheetNames.find(name => name.toLowerCase().includes('bid')) || workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        parseBidsFromExcel(jsonData);
+      } catch (error) {
+        showToast('Error reading Excel file: ' + error.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const parseBidsFromExcel = (jsonData) => {
+    const bids = jsonData
+      .map(row => {
+        const laneNumber = row['Lane #'] || row['Lane'] || row['Lane Number'];
+        const rate = parseFloat(row['Rate (Your Quote)'] || row['Rate'] || row['Your Rate'] || 0);
+        const transitTime = parseInt(row['Transit Time (hours)'] || row['Transit Time'] || row['Transit'] || 0);
+        const maxWeight = parseInt(row['Max Weight (lbs)'] || row['Max Weight'] || row['Weight'] || 45000);
+        const notes = row['Notes'] || row['Carrier Notes'] || '';
+
+        // Find matching lane
+        const lane = lanes.find(l => l.lane_number === laneNumber);
+        if (!lane || !rate || rate <= 0) return null;
+
+        const ratePerMile = lane.estimated_miles > 0 ? rate / lane.estimated_miles : 0;
+
+        return {
+          lane_number: laneNumber,
+          lane_id: lane.id,
+          rate_per_load: rate,
+          rate_per_mile: ratePerMile,
+          transit_time_hours: transitTime || null,
+          max_weight: maxWeight,
+          carrier_notes: notes,
+          // Display info
+          origin: lane.origin,
+          destination: lane.destination,
+          miles: lane.estimated_miles
+        };
+      })
+      .filter(bid => bid !== null);
+
+    setParsedBids(bids);
+    if (bids.length > 0) {
+      showToast(`Parsed ${bids.length} bids from Excel`, 'success');
+    } else {
+      showToast('No valid bids found in Excel. Make sure "Rate (Your Quote)" column is filled.', 'warning');
+    }
+  };
+
+  const handleImport = async () => {
+    if (!selectedCarrier) {
+      showToast('Please select a carrier', 'warning');
+      return;
+    }
+
+    if (parsedBids.length === 0) {
+      showToast('No bids to import', 'warning');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const bidsToInsert = parsedBids.map(bid => ({
+        rfq_id: rfqId,
+        rfq_lane_id: bid.lane_id,
+        carrier_id: selectedCarrier,
+        rate_per_load: bid.rate_per_load,
+        rate_per_mile: bid.rate_per_mile,
+        transit_time_hours: bid.transit_time_hours,
+        max_weight: bid.max_weight,
+        carrier_notes: bid.carrier_notes,
+        status: 'submitted'
+      }));
+
+      const { error } = await supabase
+        .from('rfq_bids')
+        .insert(bidsToInsert);
+
+      if (error) throw error;
+
+      onSuccess();
+    } catch (error) {
+      console.error('Error importing bids:', error);
+      showToast('Failed to import bids: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">Import Carrier Bids from Excel</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Download Template */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <Download className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-900 mb-1">Send template to carriers</h3>
+                <p className="text-sm text-blue-700 mb-3">
+                  Download a bid template for carriers to fill out with their rates
+                </p>
+                <div className="flex gap-2">
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const carrier = carriers.find(c => c.id === e.target.value);
+                        generateBidTemplate(lanes, rfqName, carrier.name);
+                        showToast(`Template for ${carrier.name} downloaded!`, 'success');
+                        e.target.value = '';
+                      }
+                    }}
+                    className="text-sm px-3 py-1.5 border border-blue-300 rounded-lg bg-white"
+                  >
+                    <option value="">Select Carrier to Generate Template...</option>
+                    {carriers.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Select Carrier */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Which carrier is submitting these bids? <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedCarrier}
+              onChange={(e) => setSelectedCarrier(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            >
+              <option value="">Select carrier...</option>
+              {carriers.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {c.mc_number ? `(MC: ${c.mc_number})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Upload File */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload Completed Bid Template
+            </label>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            />
+            {fileName && (
+              <p className="text-xs text-green-600 mt-1">✓ {fileName} loaded</p>
+            )}
+          </div>
+
+          {/* Parsed Bids Preview */}
+          {parsedBids.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">
+                Parsed Bids ({parsedBids.length})
+              </h3>
+              <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-2 py-2 text-left">Lane</th>
+                      <th className="px-2 py-2 text-left">Route</th>
+                      <th className="px-2 py-2 text-right">Rate</th>
+                      <th className="px-2 py-2 text-right">$/Mile</th>
+                      <th className="px-2 py-2 text-right">Transit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parsedBids.map((bid, idx) => (
+                      <tr key={idx} className="border-t border-gray-100">
+                        <td className="px-2 py-2">#{bid.lane_number}</td>
+                        <td className="px-2 py-2">{bid.origin} → {bid.destination}</td>
+                        <td className="px-2 py-2 text-right font-semibold">${bid.rate_per_load.toLocaleString()}</td>
+                        <td className="px-2 py-2 text-right">${bid.rate_per_mile.toFixed(2)}</td>
+                        <td className="px-2 py-2 text-right">{bid.transit_time_hours || '-'}h</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleImport}
+              disabled={loading || parsedBids.length === 0 || !selectedCarrier}
+              className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Importing...' : `Import ${parsedBids.length} Bids`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Add Bid Modal
 function AddBidModal({ lane, rfqId, carriers, onClose, onSuccess, showToast }) {
   const [formData, setFormData] = useState({
@@ -7477,6 +7768,70 @@ function AddBidModal({ lane, rfqId, carriers, onClose, onSuccess, showToast }) {
     </div>
   );
 }
+
+// Generate Bid Template for Carriers
+const generateBidTemplate = (lanes, rfqName, carrierName = 'CARRIER_NAME') => {
+  if (!lanes || lanes.length === 0) return;
+
+  const templateData = lanes.map(lane => ({
+    'Lane #': lane.lane_number,
+    'Origin': lane.origin_city ? `${lane.origin_city}, ${lane.origin_state}` : lane.origin,
+    'Destination': lane.destination_city ? `${lane.destination_city}, ${lane.destination_state}` : lane.destination,
+    'Equipment': lane.equipment_type,
+    'Commodity': lane.commodity,
+    'Miles': lane.estimated_miles,
+    'Annual Volume': lane.annual_volume,
+    // Carrier fills these columns:
+    'Rate (Your Quote)': '',
+    'Transit Time (hours)': '',
+    'Max Weight (lbs)': 45000,
+    'Notes': ''
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(templateData);
+
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 8 },  // Lane #
+    { wch: 20 }, // Origin
+    { wch: 20 }, // Destination
+    { wch: 20 }, // Equipment
+    { wch: 20 }, // Commodity
+    { wch: 10 }, // Miles
+    { wch: 12 }, // Volume
+    { wch: 15 }, // Rate (editable)
+    { wch: 15 }, // Transit (editable)
+    { wch: 15 }, // Weight (editable)
+    { wch: 30 }  // Notes (editable)
+  ];
+
+  // Add instructions sheet
+  const instructions = [
+    ['RFQ Bid Template - Instructions'],
+    [''],
+    ['How to complete this template:'],
+    ['1. Fill in the "Rate (Your Quote)" column with your rate per load for each lane'],
+    ['2. Fill in "Transit Time (hours)" - estimated transit time for each lane'],
+    ['3. Update "Max Weight (lbs)" if different from 45,000 lbs'],
+    ['4. Add any special notes or conditions in the "Notes" column'],
+    ['5. Save this file and send back'],
+    [''],
+    ['DO NOT modify the Lane #, Origin, Destination, Equipment, Commodity, Miles, or Volume columns'],
+    [''],
+    [`Carrier: ${carrierName}`],
+    [`RFQ: ${rfqName}`],
+  ];
+
+  const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
+  wsInstructions['!cols'] = [{ wch: 100 }];
+
+  XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
+  XLSX.utils.book_append_sheet(wb, ws, 'Bid Sheet');
+
+  const filename = `${rfqName.replace(/[^a-z0-9]/gi, '_')}_Bid_Template_${carrierName.replace(/[^a-z0-9]/gi, '_')}.xlsx`;
+  XLSX.writeFile(wb, filename);
+};
 
 // Export lanes to Excel
 const exportLanesToExcel = (lanes, rfqName) => {
