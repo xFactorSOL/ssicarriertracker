@@ -7360,6 +7360,7 @@ function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, 
   const [parsedBids, setParsedBids] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [importProgress, setImportProgress] = useState(0);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -7438,31 +7439,50 @@ function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, 
     }
 
     setLoading(true);
+    setImportProgress(0);
+    
     try {
-      const bidsToInsert = parsedBids.map(bid => ({
-        rfq_id: rfqId,
-        rfq_lane_id: bid.lane_id,
-        carrier_id: selectedCarrier,
-        rate_per_load: bid.rate_per_load,
-        rate_per_mile: bid.rate_per_mile,
-        transit_time_hours: bid.transit_time_hours,
-        max_weight: bid.max_weight,
-        carrier_notes: bid.carrier_notes,
-        status: 'submitted'
-      }));
+      // Import bids in smaller batches to avoid trigger recursion
+      const batchSize = 5; // Smaller batches for stability
+      let imported = 0;
 
-      const { error } = await supabase
-        .from('rfq_bids')
-        .insert(bidsToInsert);
+      for (let i = 0; i < parsedBids.length; i += batchSize) {
+        const batch = parsedBids.slice(i, i + batchSize);
+        const bidsToInsert = batch.map(bid => ({
+          rfq_id: rfqId,
+          rfq_lane_id: bid.lane_id,
+          carrier_id: selectedCarrier,
+          rate_per_load: bid.rate_per_load,
+          rate_per_mile: bid.rate_per_mile,
+          transit_time_hours: bid.transit_time_hours,
+          max_weight: bid.max_weight,
+          carrier_notes: bid.carrier_notes,
+          status: 'submitted'
+        }));
 
-      if (error) throw error;
+        const { error } = await supabase
+          .from('rfq_bids')
+          .insert(bidsToInsert);
 
+        if (error) throw error;
+        
+        imported += batch.length;
+        setImportProgress(Math.round((imported / parsedBids.length) * 100));
+        
+        // Delay between batches to let database triggers complete
+        if (i + batchSize < parsedBids.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      showToast(`Imported ${imported} bids successfully!`, 'success');
       onSuccess();
     } catch (error) {
       console.error('Error importing bids:', error);
       showToast('Failed to import bids: ' + error.message, 'error');
     } finally {
       setLoading(false);
+      setImportProgress(0);
     }
   };
 
@@ -7578,12 +7598,29 @@ function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, 
             </div>
           )}
 
+          {/* Progress Bar */}
+          {loading && importProgress > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Importing bids...</span>
+                <span className="font-medium text-[#003366]">{importProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-[#003366] h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${importProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Buttons */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={loading}
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -7592,7 +7629,7 @@ function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, 
               disabled={loading || parsedBids.length === 0 || !selectedCarrier}
               className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors disabled:opacity-50"
             >
-              {loading ? 'Importing...' : `Import ${parsedBids.length} Bids`}
+              {loading ? `Importing... ${importProgress}%` : `Import ${parsedBids.length} Bids`}
             </button>
           </div>
         </div>
