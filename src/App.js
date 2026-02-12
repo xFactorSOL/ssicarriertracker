@@ -7439,37 +7439,86 @@ function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, 
     }
 
     setLoading(true);
-    setImportProgress(0);
+    setImportProgress(10);
     
     try {
-      // Use the bulk import RPC function (no trigger recursion!)
       const bidsForImport = parsedBids.map(bid => ({
         lane_number: bid.lane_number,
         rate_per_load: bid.rate_per_load,
         rate_per_mile: bid.rate_per_mile,
         transit_time_hours: bid.transit_time_hours,
-        max_weight: bid.max_weight,
+        max_weight: bid.max_weight || 0,
         carrier_notes: bid.carrier_notes || ''
       }));
 
-      setImportProgress(50);
+      setImportProgress(20);
 
-      const { data, error } = await supabase.rpc('bulk_import_carrier_bids', {
+      // Try the simple bulk import RPC first
+      let result = await supabase.rpc('simple_bulk_import_bids', {
         p_rfq_id: rfqId,
         p_carrier_id: selectedCarrier,
         p_bids: bidsForImport
       });
 
-      if (error) throw error;
+      setImportProgress(60);
 
-      setImportProgress(100);
+      // Check if RPC worked
+      if (result.error) {
+        console.warn('RPC import failed, trying fallback method:', result.error);
+        
+        // Fallback: Insert one at a time with delays
+        let imported = 0;
+        for (const bid of parsedBids) {
+          const { error: insertError } = await supabase
+            .from('rfq_bids')
+            .insert({
+              rfq_id: rfqId,
+              rfq_lane_id: bid.lane_id,
+              carrier_id: selectedCarrier,
+              rate_per_load: bid.rate_per_load,
+              rate_per_mile: bid.rate_per_mile,
+              transit_time_hours: bid.transit_time_hours,
+              max_weight: bid.max_weight || 0,
+              carrier_notes: bid.carrier_notes || '',
+              status: 'submitted'
+            });
 
-      if (data && data.length > 0 && data[0].success) {
-        showToast(data[0].message, 'success');
-        onSuccess();
+          if (insertError) {
+            console.error('Failed to insert bid:', insertError);
+            continue;
+          }
+
+          imported++;
+          setImportProgress(60 + (imported / parsedBids.length) * 30);
+          
+          // Small delay to avoid trigger issues
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
+        setImportProgress(90);
+
+        // Manually update stats after fallback import
+        await supabase.rpc('update_rfq_stats_manual', { p_rfq_id: rfqId });
+
+        showToast(`Imported ${imported} of ${parsedBids.length} bids`, imported === parsedBids.length ? 'success' : 'warning');
       } else {
-        throw new Error(data && data[0] ? data[0].message : 'Import failed');
+        // RPC worked!
+        const responseData = result.data;
+        setImportProgress(90);
+
+        // Update stats manually
+        await supabase.rpc('update_rfq_stats_manual', { p_rfq_id: rfqId });
+
+        setImportProgress(100);
+
+        if (responseData && responseData.success) {
+          showToast(responseData.message || 'Bids imported successfully!', 'success');
+        } else {
+          showToast(responseData.message || 'Import completed with warnings', 'warning');
+        }
       }
+
+      onSuccess();
     } catch (error) {
       console.error('Error importing bids:', error);
       showToast('Failed to import bids: ' + error.message, 'error');
