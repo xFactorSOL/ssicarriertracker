@@ -7083,6 +7083,10 @@ function LanesTabContent({ lanes, loading, onAddBid, onImport, onImportBids, rfq
 
 // Bid Comparison Tab
 function BidComparisonTab({ lanes, bids, onAddBid, onImportBids, rfqName, onAwardLane, showToast }) {
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
+  const [sortBy, setSortBy] = useState('lane'); // 'lane', 'carrier', 'rate'
+  const [filterCarrier, setFilterCarrier] = useState('all');
+
   if (bids.length === 0) {
     return (
       <div className="text-center py-12">
@@ -7111,6 +7115,14 @@ function BidComparisonTab({ lanes, bids, onAddBid, onImportBids, rfqName, onAwar
     );
   }
 
+  // Calculate dashboard metrics
+  const totalBids = bids.length;
+  const uniqueCarriers = [...new Set(bids.map(b => b.carrier_id))].length;
+  const avgRate = bids.reduce((sum, b) => sum + (b.rate_per_load || 0), 0) / totalBids;
+  const lowestRate = Math.min(...bids.map(b => b.rate_per_load || Infinity));
+  const awardedBids = bids.filter(b => b.is_awarded).length;
+  const lanesWithBids = [...new Set(bids.map(b => b.lane_number))].length;
+
   // Group bids by lane
   const bidsByLane = {};
   bids.forEach(bid => {
@@ -7120,144 +7132,430 @@ function BidComparisonTab({ lanes, bids, onAddBid, onImportBids, rfqName, onAwar
     bidsByLane[bid.lane_number].push(bid);
   });
 
+  // Get unique carriers for filter
+  const carriers = [...new Set(bids.map(b => ({ id: b.carrier_id, name: b.carrier_name })))];
+
   return (
     <div className="space-y-6">
-      {Object.entries(bidsByLane).map(([laneNumber, laneBids]) => {
-        const lane = lanes.find(l => l.lane_number === parseInt(laneNumber));
-        if (!lane) return null;
+      {/* Dashboard Header with KPIs */}
+      <div className="bg-gradient-to-br from-[#003366] to-[#004488] rounded-xl p-6 text-white shadow-lg">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-1">Bid Comparison Dashboard</h2>
+            <p className="text-blue-100 text-sm">Real-time carrier bid analysis</p>
+          </div>
+          <button
+            onClick={onImportBids}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white rounded-lg transition-all"
+          >
+            <Upload className="w-4 h-4" />
+            Import Bids
+          </button>
+        </div>
 
-        return (
-          <div key={laneNumber} className="border border-gray-200 rounded-lg overflow-hidden">
-            {/* Lane Header */}
-            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900">
-                    Lane #{laneNumber}: {lane.origin} → {lane.destination}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {lane.equipment_type} • {lane.commodity} • {lane.estimated_miles} miles • {lane.annual_volume} loads/yr
-                  </p>
-                </div>
-                <button
-                  onClick={() => onAddBid(lane)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  + Add Bid
-                </button>
-              </div>
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+            <div className="text-blue-100 text-xs uppercase tracking-wide mb-1">Total Bids</div>
+            <div className="text-3xl font-bold">{totalBids}</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+            <div className="text-blue-100 text-xs uppercase tracking-wide mb-1">Carriers</div>
+            <div className="text-3xl font-bold">{uniqueCarriers}</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+            <div className="text-blue-100 text-xs uppercase tracking-wide mb-1">Lanes</div>
+            <div className="text-3xl font-bold">{lanesWithBids}/{lanes.length}</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+            <div className="text-blue-100 text-xs uppercase tracking-wide mb-1">Avg Rate</div>
+            <div className="text-3xl font-bold">${(avgRate / 1000).toFixed(1)}k</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+            <div className="text-green-200 text-xs uppercase tracking-wide mb-1">Best Rate</div>
+            <div className="text-3xl font-bold text-green-300">${(lowestRate / 1000).toFixed(1)}k</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
+            <div className="text-blue-100 text-xs uppercase tracking-wide mb-1">Awarded</div>
+            <div className="text-3xl font-bold">{awardedBids}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters and View Controls */}
+      <div className="flex items-center justify-between gap-4 bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">View:</span>
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  viewMode === 'cards' 
+                    ? 'bg-white text-[#003366] shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Cards
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  viewMode === 'table' 
+                    ? 'bg-white text-[#003366] shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Table
+              </button>
             </div>
+          </div>
 
-            {/* Bids Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Carrier</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Rate</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">$/Mile</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Transit (Days)</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">vs Avg</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {laneBids.map((bid) => (
-                    <tr key={bid.id} className={bid.is_awarded ? 'bg-green-50' : bid.rank === 1 ? 'bg-blue-50' : ''}>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            bid.rank === 1 ? 'bg-yellow-100 text-yellow-800' :
-                            bid.rank === 2 ? 'bg-gray-100 text-gray-700' :
-                            'bg-white text-gray-600'
-                          }`}>
-                            #{bid.rank}
-                          </span>
-                          {bid.is_lowest_bid && <Award className="w-4 h-4 text-yellow-500" />}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900">{bid.carrier_name}</div>
-                        <div className="text-xs text-gray-500">MC: {bid.mc_number}</div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="font-semibold text-gray-900">
-                          ${bid.rate_per_load?.toLocaleString()}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Sort:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            >
+              <option value="lane">By Lane</option>
+              <option value="carrier">By Carrier</option>
+              <option value="rate">By Rate</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Carrier:</span>
+            <select
+              value={filterCarrier}
+              onChange={(e) => setFilterCarrier(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            >
+              <option value="all">All Carriers</option>
+              {carriers.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="text-sm text-gray-500">
+          Showing {totalBids} bids across {lanesWithBids} lanes
+        </div>
+      </div>
+
+      {/* Card View */}
+      {viewMode === 'cards' ? (
+        <div className="space-y-4">
+          {Object.entries(bidsByLane).map(([laneNumber, laneBids]) => {
+            const lane = lanes.find(l => l.lane_number === parseInt(laneNumber));
+            if (!lane) return null;
+
+            const filteredBids = filterCarrier === 'all' 
+              ? laneBids 
+              : laneBids.filter(b => b.carrier_id === filterCarrier);
+
+            if (filteredBids.length === 0) return null;
+
+            const laneLowest = Math.min(...laneBids.map(b => b.rate_per_load));
+            const laneAvg = laneBids.reduce((sum, b) => sum + b.rate_per_load, 0) / laneBids.length;
+
+            return (
+              <div key={laneNumber} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                {/* Lane Header - More Compact */}
+                <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#003366] text-white font-bold text-sm">
+                          {laneNumber}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="text-gray-900">${bid.rate_per_mile?.toFixed(2)}</span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="text-gray-700">
-                          {bid.transit_time_hours ? (bid.transit_time_hours / 24).toFixed(1) : '-'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={`font-medium ${
-                          bid.vs_average_pct < 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {bid.vs_average_pct > 0 ? '+' : ''}{bid.vs_average_pct?.toFixed(1)}%
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {bid.is_awarded ? (
+                        <h3 className="text-lg font-bold text-gray-900">
+                          {lane.origin} <ArrowRight className="w-4 h-4 inline text-gray-400" /> {lane.destination}
+                        </h3>
+                        {lane.status === 'awarded' && (
                           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             <CheckCircle className="w-3 h-3" />
                             Awarded
                           </span>
-                        ) : (
-                          <span className="text-xs text-gray-500">Pending</span>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {!bid.is_awarded && (
-                          <button
-                            onClick={() => onAwardLane(lane.id, bid.id)}
-                            className="px-3 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
-                          >
-                            Award
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <Truck className="w-4 h-4" />
+                          {lane.equipment_type}
+                        </span>
+                        <span>•</span>
+                        <span>{lane.commodity}</span>
+                        <span>•</span>
+                        <span className="font-medium">{lane.estimated_miles} mi</span>
+                        <span>•</span>
+                        <span>{lane.annual_volume}/yr</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onAddBid(lane)}
+                      className="px-4 py-2 text-sm font-medium border-2 border-[#003366] text-[#003366] rounded-lg hover:bg-[#003366] hover:text-white transition-all"
+                    >
+                      + Add Bid
+                    </button>
+                  </div>
 
-            {/* Quick Stats */}
-            <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 grid grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">Lowest Bid:</span>
-                <span className="ml-2 font-semibold text-green-600">
-                  ${laneBids[0]?.rate_per_load?.toLocaleString()}
-                </span>
+                  {/* Lane Quick Stats */}
+                  <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-gray-200">
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">Bids Received</div>
+                      <div className="text-lg font-bold text-gray-900">{laneBids.length}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">Lowest Bid</div>
+                      <div className="text-lg font-bold text-green-600">${laneLowest.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">Average Bid</div>
+                      <div className="text-lg font-bold text-gray-900">${laneAvg.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">Spread</div>
+                      <div className="text-lg font-bold text-blue-600">
+                        {((Math.max(...laneBids.map(b => b.rate_per_load)) - laneLowest) / laneLowest * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Carrier Bids - Card Style */}
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredBids.map((bid, idx) => (
+                      <div 
+                        key={bid.id}
+                        className={`relative border-2 rounded-xl p-4 transition-all hover:shadow-lg ${
+                          bid.is_awarded 
+                            ? 'border-green-500 bg-green-50 shadow-md' 
+                            : bid.rank === 1 
+                              ? 'border-yellow-400 bg-yellow-50 shadow-md'
+                              : 'border-gray-200 bg-white hover:border-[#003366]'
+                        }`}
+                      >
+                        {/* Rank Badge */}
+                        <div className="absolute -top-3 -left-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-lg ${
+                            bid.rank === 1 ? 'bg-yellow-400 text-yellow-900' :
+                            bid.rank === 2 ? 'bg-gray-300 text-gray-700' :
+                            bid.rank === 3 ? 'bg-orange-300 text-orange-900' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>
+                            #{bid.rank}
+                          </div>
+                        </div>
+
+                        {/* Awarded Badge */}
+                        {bid.is_awarded && (
+                          <div className="absolute -top-2 -right-2">
+                            <CheckCircle className="w-8 h-8 text-green-600 fill-white" />
+                          </div>
+                        )}
+
+                        <div className="mt-2">
+                          {/* Carrier Info */}
+                          <div className="mb-4">
+                            <h4 className="font-bold text-gray-900 text-lg mb-1">{bid.carrier_name}</h4>
+                            <p className="text-xs text-gray-500">MC: {bid.mc_number}</p>
+                          </div>
+
+                          {/* Rate - Big and Bold */}
+                          <div className="mb-4 pb-4 border-b border-gray-200">
+                            <div className="text-xs text-gray-500 mb-1">Rate per Load</div>
+                            <div className="text-3xl font-bold text-[#003366]">
+                              ${bid.rate_per_load?.toLocaleString()}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              ${bid.rate_per_mile?.toFixed(2)}/mile
+                            </div>
+                          </div>
+
+                          {/* Stats Grid */}
+                          <div className="grid grid-cols-2 gap-3 mb-4">
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Transit Time</div>
+                              <div className="font-semibold text-gray-900">
+                                {bid.transit_time_hours ? (bid.transit_time_hours / 24).toFixed(1) : '-'} days
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">vs Average</div>
+                              <div className={`font-bold ${bid.vs_average_pct < 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {bid.vs_average_pct > 0 ? '+' : ''}{bid.vs_average_pct?.toFixed(1)}%
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Award Button */}
+                          {!bid.is_awarded && (
+                            <button
+                              onClick={() => onAwardLane(lane.id, bid.id)}
+                              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-all shadow-sm hover:shadow-md"
+                            >
+                              Award Lane
+                            </button>
+                          )}
+
+                          {bid.is_awarded && (
+                            <div className="w-full py-2.5 bg-green-100 text-green-800 font-semibold rounded-lg text-center flex items-center justify-center gap-2">
+                              <CheckCircle className="w-4 h-4" />
+                              Awarded
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-500">Highest Bid:</span>
-                <span className="ml-2 font-semibold text-red-600">
-                  ${laneBids[laneBids.length - 1]?.rate_per_load?.toLocaleString()}
-                </span>
+            );
+          })}
+        </div>
+      ) : (
+        /* Table View - Compact */
+        <div className="space-y-6">
+          {Object.entries(bidsByLane).map(([laneNumber, laneBids]) => {
+            const lane = lanes.find(l => l.lane_number === parseInt(laneNumber));
+            if (!lane) return null;
+
+            return (
+              <div key={laneNumber} className="border border-gray-200 rounded-lg overflow-hidden">
+                {/* Lane Header */}
+                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        Lane #{laneNumber}: {lane.origin} → {lane.destination}
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {lane.equipment_type} • {lane.commodity} • {lane.estimated_miles} miles • {lane.annual_volume} loads/yr
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => onAddBid(lane)}
+                      className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      + Add Bid
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bids Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Carrier</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Rate</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">$/Mile</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Transit (Days)</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">vs Avg</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {laneBids.map((bid) => (
+                        <tr key={bid.id} className={bid.is_awarded ? 'bg-green-50' : bid.rank === 1 ? 'bg-blue-50' : ''}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                bid.rank === 1 ? 'bg-yellow-100 text-yellow-800' :
+                                bid.rank === 2 ? 'bg-gray-100 text-gray-700' :
+                                'bg-white text-gray-600'
+                              }`}>
+                                #{bid.rank}
+                              </span>
+                              {bid.is_lowest_bid && <Award className="w-4 h-4 text-yellow-500" />}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900">{bid.carrier_name}</div>
+                            <div className="text-xs text-gray-500">MC: {bid.mc_number}</div>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="font-semibold text-gray-900">
+                              ${bid.rate_per_load?.toLocaleString()}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="text-gray-900">${bid.rate_per_mile?.toFixed(2)}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="text-gray-700">
+                              {bid.transit_time_hours ? (bid.transit_time_hours / 24).toFixed(1) : '-'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={`font-medium ${
+                              bid.vs_average_pct < 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {bid.vs_average_pct > 0 ? '+' : ''}{bid.vs_average_pct?.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {bid.is_awarded ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <CheckCircle className="w-3 h-3" />
+                                Awarded
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-500">Pending</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {!bid.is_awarded && (
+                              <button
+                                onClick={() => onAwardLane(lane.id, bid.id)}
+                                className="px-3 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
+                              >
+                                Award
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 grid grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Lowest Bid:</span>
+                    <span className="ml-2 font-semibold text-green-600">
+                      ${laneBids[0]?.rate_per_load?.toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Highest Bid:</span>
+                    <span className="ml-2 font-semibold text-red-600">
+                      ${laneBids[laneBids.length - 1]?.rate_per_load?.toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Average:</span>
+                    <span className="ml-2 font-semibold text-gray-900">
+                      ${(laneBids.reduce((sum, b) => sum + b.rate_per_load, 0) / laneBids.length).toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Savings:</span>
+                    <span className="ml-2 font-semibold text-green-600">
+                      ${((laneBids[laneBids.length - 1]?.rate_per_load || 0) - (laneBids[0]?.rate_per_load || 0)).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-500">Average:</span>
-                <span className="ml-2 font-semibold text-gray-900">
-                  ${(laneBids.reduce((sum, b) => sum + b.rate_per_load, 0) / laneBids.length).toLocaleString()}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-500">Savings:</span>
-                <span className="ml-2 font-semibold text-green-600">
-                  ${((laneBids[laneBids.length - 1]?.rate_per_load || 0) - (laneBids[0]?.rate_per_load || 0)).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
