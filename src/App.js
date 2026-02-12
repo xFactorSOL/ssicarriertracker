@@ -6776,6 +6776,9 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
   const [lanes, setLanes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showImportCSV, setShowImportCSV] = useState(false);
+  const [activeTab, setActiveTab] = useState('lanes');
+  const [showAddBid, setShowAddBid] = useState(null); // lane to add bid for
+  const [bids, setBids] = useState([]);
 
   const fetchLanes = useCallback(async () => {
     setLoading(true);
@@ -6789,9 +6792,21 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
     setLoading(false);
   }, [rfq.id]);
 
+  const fetchBids = useCallback(async () => {
+    const { data } = await supabase
+      .from('vw_bid_comparison')
+      .select('*')
+      .eq('rfq_id', rfq.id)
+      .order('lane_number', { ascending: true })
+      .order('rank', { ascending: true });
+    
+    if (data) setBids(data);
+  }, [rfq.id]);
+
   useEffect(() => {
     fetchLanes();
-  }, [fetchLanes]);
+    fetchBids();
+  }, [fetchLanes, fetchBids]);
 
   return (
     <div className="space-y-6">
@@ -6833,8 +6848,8 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
           <p className="text-2xl font-bold text-gray-900">{lanes.length}</p>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Responses</p>
-          <p className="text-2xl font-bold text-gray-900">{rfq.total_responses || 0}</p>
+          <p className="text-sm text-gray-500">Total Bids</p>
+          <p className="text-2xl font-bold text-gray-900">{bids.length}</p>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <p className="text-sm text-gray-500">Awarded</p>
@@ -6848,52 +6863,92 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
         </div>
       </div>
 
-      {/* Lanes List */}
+      {/* Tabs */}
       <div className="bg-white rounded-lg border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Lanes ({lanes.length})</h2>
+        <div className="border-b border-gray-200">
+          <div className="flex gap-4 px-6">
+            <button
+              onClick={() => setActiveTab('lanes')}
+              className={`py-4 px-2 border-b-2 font-medium transition-colors ${
+                activeTab === 'lanes'
+                  ? 'border-[#003366] text-[#003366]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Lanes ({lanes.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('bids')}
+              className={`py-4 px-2 border-b-2 font-medium transition-colors ${
+                activeTab === 'bids'
+                  ? 'border-[#003366] text-[#003366]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Bid Comparison ({bids.length} bids)
+            </button>
+            <button
+              onClick={() => setActiveTab('awarded')}
+              className={`py-4 px-2 border-b-2 font-medium transition-colors ${
+                activeTab === 'awarded'
+                  ? 'border-[#003366] text-[#003366]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Awarded ({lanes.filter(l => l.status === 'awarded').length})
+            </button>
+          </div>
         </div>
+
+        {/* Tab Content */}
         <div className="p-6">
-          {loading ? (
-            <div className="text-center py-8 text-gray-500">Loading lanes...</div>
-          ) : lanes.length === 0 ? (
-            <div className="text-center py-12">
-              <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No lanes yet</h3>
-              <p className="text-gray-500 mb-6">Import lanes from CSV to get started</p>
-              <button
-                onClick={() => setShowImportCSV(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
-              >
-                <Upload className="w-4 h-4" />
-                Import Lanes
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {lanes.map((lane) => (
-                <div key={lane.id} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#003366] transition-colors">
-                  <div className="bg-gray-100 px-3 py-1 rounded-lg">
-                    <span className="text-sm font-bold text-gray-900">#{lane.lane_number}</span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{lane.origin} → {lane.destination}</p>
-                    <p className="text-sm text-gray-500">{lane.equipment_type} • {lane.commodity}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500">Volume</p>
-                    <p className="font-semibold text-gray-900">{lane.annual_volume}/yr</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500">Miles</p>
-                    <p className="font-semibold text-gray-900">{lane.estimated_miles}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+          {activeTab === 'lanes' && (
+            <LanesTabContent 
+              lanes={lanes}
+              loading={loading}
+              onAddBid={(lane) => setShowAddBid(lane)}
+              onImport={() => setShowImportCSV(true)}
+            />
+          )}
+          
+          {activeTab === 'bids' && (
+            <BidComparisonTab
+              lanes={lanes}
+              bids={bids}
+              onAddBid={(lane) => setShowAddBid(lane)}
+              onAwardLane={async (laneId, bidId) => {
+                // Award lane logic
+                const { error } = await supabase
+                  .from('rfq_lanes')
+                  .update({
+                    status: 'awarded',
+                    awarded_bid_id: bidId,
+                    awarded_at: new Date().toISOString()
+                  })
+                  .eq('id', laneId);
+
+                if (!error) {
+                  showToast('Lane awarded successfully!', 'success');
+                  fetchLanes();
+                  fetchBids();
+                  onRefresh();
+                } else {
+                  showToast('Failed to award lane: ' + error.message, 'error');
+                }
+              }}
+              showToast={showToast}
+            />
+          )}
+
+          {activeTab === 'awarded' && (
+            <AwardedLanesTab
+              lanes={lanes.filter(l => l.status === 'awarded')}
+              bids={bids}
+            />
           )}
         </div>
       </div>
+
 
       {/* Import CSV Modal */}
       {showImportCSV && (
@@ -6903,12 +6958,522 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
           onSuccess={() => {
             setShowImportCSV(false);
             fetchLanes();
+            fetchBids();
             onRefresh();
             showToast('Lanes imported successfully!', 'success');
           }}
           showToast={showToast}
         />
       )}
+
+      {/* Add Bid Modal */}
+      {showAddBid && (
+        <AddBidModal
+          lane={showAddBid}
+          rfqId={rfq.id}
+          carriers={carriers}
+          onClose={() => setShowAddBid(null)}
+          onSuccess={() => {
+            setShowAddBid(null);
+            fetchBids();
+            onRefresh();
+            showToast('Bid added successfully!', 'success');
+          }}
+          showToast={showToast}
+        />
+      )}
+    </div>
+  );
+}
+
+// Lanes Tab Content
+function LanesTabContent({ lanes, loading, onAddBid, onImport }) {
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">Loading lanes...</div>;
+  }
+
+  if (lanes.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No lanes yet</h3>
+        <p className="text-gray-500 mb-6">Import lanes from Excel to get started</p>
+        <button
+          onClick={onImport}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+        >
+          <Upload className="w-4 h-4" />
+          Import Lanes
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {lanes.map((lane) => (
+        <div key={lane.id} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:border-[#003366] transition-colors">
+          <div className="bg-gray-100 px-3 py-1 rounded-lg">
+            <span className="text-sm font-bold text-gray-900">#{lane.lane_number}</span>
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-gray-900">{lane.origin} → {lane.destination}</p>
+            <p className="text-sm text-gray-500">{lane.equipment_type} • {lane.commodity}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-500">Volume</p>
+            <p className="font-semibold text-gray-900">{lane.annual_volume}/yr</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-500">Miles</p>
+            <p className="font-semibold text-gray-900">{lane.estimated_miles}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-500">Bids</p>
+            <p className="font-semibold text-gray-900">{lane.bids_received || 0}</p>
+          </div>
+          <button
+            onClick={() => onAddBid(lane)}
+            className="px-3 py-1.5 text-sm bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+          >
+            + Add Bid
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Bid Comparison Tab
+function BidComparisonTab({ lanes, bids, onAddBid, onAwardLane, showToast }) {
+  if (bids.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Target className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No bids yet</h3>
+        <p className="text-gray-500 mb-6">Add carrier bids to compare pricing</p>
+        {lanes.length > 0 && (
+          <button
+            onClick={() => onAddBid(lanes[0])}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add First Bid
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Group bids by lane
+  const bidsByLane = {};
+  bids.forEach(bid => {
+    if (!bidsByLane[bid.lane_number]) {
+      bidsByLane[bid.lane_number] = [];
+    }
+    bidsByLane[bid.lane_number].push(bid);
+  });
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(bidsByLane).map(([laneNumber, laneBids]) => {
+        const lane = lanes.find(l => l.lane_number === parseInt(laneNumber));
+        if (!lane) return null;
+
+        return (
+          <div key={laneNumber} className="border border-gray-200 rounded-lg overflow-hidden">
+            {/* Lane Header */}
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900">
+                    Lane #{laneNumber}: {lane.origin} → {lane.destination}
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {lane.equipment_type} • {lane.commodity} • {lane.estimated_miles} miles • {lane.annual_volume} loads/yr
+                  </p>
+                </div>
+                <button
+                  onClick={() => onAddBid(lane)}
+                  className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  + Add Bid
+                </button>
+              </div>
+            </div>
+
+            {/* Bids Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Carrier</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Rate</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">$/Mile</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Transit</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">vs Avg</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {laneBids.map((bid) => (
+                    <tr key={bid.id} className={bid.is_awarded ? 'bg-green-50' : bid.rank === 1 ? 'bg-blue-50' : ''}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${
+                            bid.rank === 1 ? 'bg-yellow-100 text-yellow-800' :
+                            bid.rank === 2 ? 'bg-gray-100 text-gray-700' :
+                            'bg-white text-gray-600'
+                          }`}>
+                            #{bid.rank}
+                          </span>
+                          {bid.is_lowest_bid && <Award className="w-4 h-4 text-yellow-500" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900">{bid.carrier_name}</div>
+                        <div className="text-xs text-gray-500">MC: {bid.mc_number}</div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="font-semibold text-gray-900">
+                          ${bid.rate_per_load?.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-gray-900">${bid.rate_per_mile?.toFixed(2)}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-gray-700">{bid.transit_time_hours}h</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`font-medium ${
+                          bid.vs_average_pct < 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {bid.vs_average_pct > 0 ? '+' : ''}{bid.vs_average_pct?.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {bid.is_awarded ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircle className="w-3 h-3" />
+                            Awarded
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-500">Pending</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {!bid.is_awarded && (
+                          <button
+                            onClick={() => onAwardLane(lane.id, bid.id)}
+                            className="px-3 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
+                          >
+                            Award
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 grid grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500">Lowest Bid:</span>
+                <span className="ml-2 font-semibold text-green-600">
+                  ${laneBids[0]?.rate_per_load?.toLocaleString()}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">Highest Bid:</span>
+                <span className="ml-2 font-semibold text-red-600">
+                  ${laneBids[laneBids.length - 1]?.rate_per_load?.toLocaleString()}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">Average:</span>
+                <span className="ml-2 font-semibold text-gray-900">
+                  ${(laneBids.reduce((sum, b) => sum + b.rate_per_load, 0) / laneBids.length).toLocaleString()}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">Savings:</span>
+                <span className="ml-2 font-semibold text-green-600">
+                  ${((laneBids[laneBids.length - 1]?.rate_per_load || 0) - (laneBids[0]?.rate_per_load || 0)).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Awarded Lanes Tab
+function AwardedLanesTab({ lanes, bids }) {
+  if (lanes.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No awarded lanes yet</h3>
+        <p className="text-gray-500">Award lanes from the Bid Comparison tab</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {lanes.map((lane) => {
+        const awardedBid = bids.find(b => b.id === lane.awarded_bid_id);
+        
+        return (
+          <div key={lane.id} className="border border-green-200 bg-green-50 rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Award className="w-5 h-5 text-green-600" />
+                  <h3 className="font-semibold text-gray-900">
+                    Lane #{lane.lane_number}: {lane.origin} → {lane.destination}
+                  </h3>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  {lane.equipment_type} • {lane.commodity} • {lane.estimated_miles} miles
+                </p>
+                {awardedBid && (
+                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Awarded To</p>
+                        <p className="font-semibold text-gray-900">{awardedBid.carrier_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Rate</p>
+                        <p className="font-semibold text-gray-900">${awardedBid.rate_per_load?.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">$/Mile</p>
+                        <p className="font-semibold text-gray-900">${awardedBid.rate_per_mile?.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Annual Value</p>
+                        <p className="font-semibold text-green-600">
+                          ${((awardedBid.rate_per_load || 0) * (lane.annual_volume || 0)).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Summary */}
+      <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 mt-6">
+        <h3 className="font-semibold text-gray-900 mb-4">Award Summary</h3>
+        <div className="grid grid-cols-3 gap-6">
+          <div>
+            <p className="text-sm text-gray-500">Total Lanes Awarded</p>
+            <p className="text-2xl font-bold text-gray-900">{lanes.length}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Total Annual Value</p>
+            <p className="text-2xl font-bold text-green-600">
+              ${lanes.reduce((sum, lane) => {
+                const bid = bids.find(b => b.id === lane.awarded_bid_id);
+                return sum + ((bid?.rate_per_load || 0) * (lane.annual_volume || 0));
+              }, 0).toLocaleString()}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Average Rate/Mile</p>
+            <p className="text-2xl font-bold text-gray-900">
+              ${(lanes.reduce((sum, lane) => {
+                const bid = bids.find(b => b.id === lane.awarded_bid_id);
+                return sum + (bid?.rate_per_mile || 0);
+              }, 0) / lanes.length).toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Add Bid Modal
+function AddBidModal({ lane, rfqId, carriers, onClose, onSuccess, showToast }) {
+  const [formData, setFormData] = useState({
+    carrier_id: '',
+    rate_per_load: '',
+    transit_time_hours: '',
+    max_weight: 45000,
+    carrier_notes: ''
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const ratePerLoad = parseFloat(formData.rate_per_load);
+      const ratePerMile = lane.estimated_miles > 0 ? ratePerLoad / lane.estimated_miles : 0;
+
+      const { error } = await supabase
+        .from('rfq_bids')
+        .insert([{
+          rfq_id: rfqId,
+          rfq_lane_id: lane.id,
+          carrier_id: formData.carrier_id,
+          rate_per_load: ratePerLoad,
+          rate_per_mile: ratePerMile,
+          transit_time_hours: parseInt(formData.transit_time_hours),
+          max_weight: parseInt(formData.max_weight),
+          carrier_notes: formData.carrier_notes,
+          status: 'submitted'
+        }]);
+
+      if (error) throw error;
+
+      onSuccess();
+    } catch (error) {
+      console.error('Error adding bid:', error);
+      showToast('Failed to add bid: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+        <div className="bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">Add Bid for Lane #{lane.lane_number}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Lane Info */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <p className="font-medium text-gray-900">{lane.origin} → {lane.destination}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {lane.equipment_type} • {lane.commodity} • {lane.estimated_miles} miles
+            </p>
+          </div>
+
+          {/* Carrier Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Carrier <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.carrier_id}
+              onChange={(e) => setFormData({...formData, carrier_id: e.target.value})}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+              required
+            >
+              <option value="">Select carrier...</option>
+              {carriers.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {c.mc_number ? `(MC: ${c.mc_number})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Rate */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Rate per Load <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.rate_per_load}
+                  onChange={(e) => setFormData({...formData, rate_per_load: e.target.value})}
+                  placeholder="2400.00"
+                  className="w-full pl-8 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                  required
+                />
+              </div>
+              {formData.rate_per_load && lane.estimated_miles > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  = ${(parseFloat(formData.rate_per_load) / lane.estimated_miles).toFixed(2)}/mile
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Transit Time (hours)
+              </label>
+              <input
+                type="number"
+                value={formData.transit_time_hours}
+                onChange={(e) => setFormData({...formData, transit_time_hours: e.target.value})}
+                placeholder="32"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+              />
+            </div>
+          </div>
+
+          {/* Max Weight */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Maximum Weight (lbs)
+            </label>
+            <input
+              type="number"
+              value={formData.max_weight}
+              onChange={(e) => setFormData({...formData, max_weight: e.target.value})}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            />
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Carrier Notes
+            </label>
+            <textarea
+              value={formData.carrier_notes}
+              onChange={(e) => setFormData({...formData, carrier_notes: e.target.value})}
+              rows={3}
+              placeholder="Any special conditions or notes from carrier..."
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366]"
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-[#003366] text-white rounded-lg hover:bg-[#002244] transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Adding...' : 'Add Bid'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
