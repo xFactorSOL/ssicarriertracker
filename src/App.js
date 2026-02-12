@@ -6758,20 +6758,15 @@ function CreateRFQModal({ onClose, onSuccess, customers, currentUser, showToast 
   );
 }
 
-// RFQ Details View Component (placeholder - will expand in next message)
+// RFQ Details View Component
 function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToast }) {
-  const [activeTab, setActiveTab] = useState('lanes');
   const [lanes, setLanes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showImportCSV, setShowImportCSV] = useState(false);
 
-  useEffect(() => {
-    fetchLanes();
-  }, [rfq.id]);
-
-  const fetchLanes = async () => {
+  const fetchLanes = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('vw_rfq_lanes_with_stats')
       .select('*')
       .eq('rfq_id', rfq.id)
@@ -6779,7 +6774,11 @@ function RFQDetailsView({ rfq, carriers, facilities, onBack, onRefresh, showToas
     
     if (data) setLanes(data);
     setLoading(false);
-  };
+  }, [rfq.id]);
+
+  useEffect(() => {
+    fetchLanes();
+  }, [fetchLanes]);
 
   return (
     <div className="space-y-6">
