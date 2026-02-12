@@ -7442,41 +7442,34 @@ function ImportBidsModal({ rfqId, lanes, carriers, rfqName, onClose, onSuccess, 
     setImportProgress(0);
     
     try {
-      // Import bids in smaller batches to avoid trigger recursion
-      const batchSize = 5; // Smaller batches for stability
-      let imported = 0;
+      // Use the bulk import RPC function (no trigger recursion!)
+      const bidsForImport = parsedBids.map(bid => ({
+        lane_number: bid.lane_number,
+        rate_per_load: bid.rate_per_load,
+        rate_per_mile: bid.rate_per_mile,
+        transit_time_hours: bid.transit_time_hours,
+        max_weight: bid.max_weight,
+        carrier_notes: bid.carrier_notes || ''
+      }));
 
-      for (let i = 0; i < parsedBids.length; i += batchSize) {
-        const batch = parsedBids.slice(i, i + batchSize);
-        const bidsToInsert = batch.map(bid => ({
-          rfq_id: rfqId,
-          rfq_lane_id: bid.lane_id,
-          carrier_id: selectedCarrier,
-          rate_per_load: bid.rate_per_load,
-          rate_per_mile: bid.rate_per_mile,
-          transit_time_hours: bid.transit_time_hours,
-          max_weight: bid.max_weight,
-          carrier_notes: bid.carrier_notes,
-          status: 'submitted'
-        }));
+      setImportProgress(50);
 
-        const { error } = await supabase
-          .from('rfq_bids')
-          .insert(bidsToInsert);
+      const { data, error } = await supabase.rpc('bulk_import_carrier_bids', {
+        p_rfq_id: rfqId,
+        p_carrier_id: selectedCarrier,
+        p_bids: bidsForImport
+      });
 
-        if (error) throw error;
-        
-        imported += batch.length;
-        setImportProgress(Math.round((imported / parsedBids.length) * 100));
-        
-        // Delay between batches to let database triggers complete
-        if (i + batchSize < parsedBids.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+      if (error) throw error;
+
+      setImportProgress(100);
+
+      if (data && data.length > 0 && data[0].success) {
+        showToast(data[0].message, 'success');
+        onSuccess();
+      } else {
+        throw new Error(data && data[0] ? data[0].message : 'Import failed');
       }
-
-      showToast(`Imported ${imported} bids successfully!`, 'success');
-      onSuccess();
     } catch (error) {
       console.error('Error importing bids:', error);
       showToast('Failed to import bids: ' + error.message, 'error');
